@@ -2,9 +2,12 @@
 
 Sistema de análise financeira interativo desenvolvido em Python/Streamlit.
 
+## 🌐 **ACESSO PÚBLICO**
+**🔗 [Dashboard Online](https://relatorio-financeiro.streamlit.app/)** - Acesse diretamente no navegador!
+
 ---
 
-## 🚀 Iniciar Dashboard
+## 🚀 Iniciar Dashboard Localmente
 
 ### Opção 1: Duplo clique (Windows)
 ```
@@ -15,6 +18,22 @@ Duplo clique em: Iniciar Dashboard.bat
 ```bash
 streamlit run app.py
 ```
+
+---
+
+## ☁️ Deploy no Streamlit Cloud
+
+Para disponibilizar o dashboard publicamente:
+
+1. **Acesse:** [share.streamlit.io](https://share.streamlit.io)
+2. **Conecte sua conta GitHub**
+3. **Selecione o repositório:** `Dkubitz/Relatorio_Financeiro`
+4. **Configure:**
+   - **Main file path:** `app.py`
+   - **Branch:** `master`
+5. **Deploy!** 
+
+O dashboard ficará disponível em: `https://relatorio-financeiro.streamlit.app/`
 
 ---
 
