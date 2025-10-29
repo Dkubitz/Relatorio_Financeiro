@@ -1,0 +1,67 @@
+============================================================
+          📊 DASHBOARD FINANCEIRO - GUIA RÁPIDO
+============================================================
+
+🚀 COMO INICIAR:
+
+1. Dê DUPLO CLIQUE em "Iniciar Dashboard.bat"
+2. Aguarde alguns segundos
+3. O dashboard abrirá automaticamente no navegador
+4. Pronto! 🎉
+
+────────────────────────────────────────────────────────────
+
+📝 COMO ATUALIZAR OS DADOS:
+
+1. Abra "Fluxo Financeiro.csv" no Excel
+2. Edite os dados que precisar
+3. SALVE o arquivo (Ctrl+S)
+4. No navegador, pressione F5 para recarregar
+5. Os dados serão atualizados automaticamente!
+
+────────────────────────────────────────────────────────────
+
+⚙️ INSTALAÇÃO INICIAL (apenas primeira vez):
+
+Se for a PRIMEIRA VEZ usando:
+
+1. Instale o Python:
+   https://www.python.org/downloads/
+   
+   ⚠️ IMPORTANTE: Marque "Add Python to PATH"!
+
+2. Abra o Prompt de Comando nesta pasta:
+   - Shift + Botão Direito na pasta
+   - Clique em "Abrir janela de comando aqui"
+   
+3. Execute:
+   pip install -r requirements.txt
+   
+4. Pronto! Agora é só usar o "Iniciar Dashboard.bat"
+
+────────────────────────────────────────────────────────────
+
+⚠️ RESOLUÇÃO DE PROBLEMAS:
+
+❌ "Python não encontrado"
+   → Instale o Python e marque "Add to PATH"
+
+❌ "ModuleNotFoundError"
+   → Execute: pip install -r requirements.txt
+
+❌ Dashboard não abre
+   → Abra manualmente: http://localhost:8501
+
+❌ Dados não atualizam
+   → Pressione F5 no navegador
+
+────────────────────────────────────────────────────────────
+
+📋 ARQUIVOS IMPORTANTES:
+
+✅ Fluxo Financeiro.csv - Seus dados (EDITE AQUI)
+✅ Iniciar Dashboard.bat - Clique para iniciar
+❌ NÃO DELETE os outros arquivos!
+
+============================================================
+
