@@ -29,21 +29,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS customizado para melhorar a aparência COM ANIMAÇÕES
+# CSS customizado para melhorar a aparência COM ANIMAÇÕES E SUPORTE A TEMA ESCURO/CLARO
 st.markdown("""
 <style>
+    /* Header - Adaptável ao tema usando cores que funcionam bem em ambos */
     .main-header {
         font-size: 2.5rem;
         font-weight: 700;
-        color: #1f2937;
         margin-bottom: 0.5rem;
         animation: fadeInDown 0.8s ease-out;
+        /* Cor será herdada do Streamlit - funciona em ambos os temas */
     }
     .sub-header {
         font-size: 1.1rem;
-        color: #6b7280;
         margin-bottom: 2rem;
         animation: fadeIn 1s ease-out;
+        opacity: 0.85;
+        /* Cor será herdada do Streamlit - funciona em ambos os temas */
+    }
+    
+    /* Garantir que elementos customizados herdem cor do tema */
+    .main-header, .sub-header {
+        color: inherit;
     }
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -54,9 +61,8 @@ st.markdown("""
         animation: slideInUp 0.6s ease-out;
     }
     
-    /* ANIMAÇÕES NOS MÉTRICAS */
+    /* ANIMAÇÕES NOS MÉTRICAS - Remove background fixo para usar tema do Streamlit */
     .stMetric {
-        background-color: #f9fafb;
         padding: 1rem;
         border-radius: 0.5rem;
         border-left: 4px solid #3b82f6;
@@ -66,24 +72,24 @@ st.markdown("""
     
     .stMetric:hover {
         transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
     
-    /* Animação para os números das métricas */
+    /* Animação para os números das métricas - Remove cor fixa para usar tema */
     [data-testid="stMetricValue"] {
         animation: countUp 1.2s cubic-bezier(0.16, 1, 0.3, 1);
         font-weight: 700;
-        color: #1f2937;
+        /* Remove cor fixa - Streamlit ajusta automaticamente */
     }
     
-    /* Animação para os labels das métricas */
+    /* Animação para os labels das métricas - Remove cor fixa para usar tema */
     [data-testid="stMetricLabel"] {
         animation: fadeIn 0.8s ease-out;
-        color: #6b7280;
         font-weight: 600;
+        /* Remove cor fixa - Streamlit ajusta automaticamente */
     }
     
-    /* Animação para delta */
+    /* Animação para delta - Mantém cores originais do Streamlit */
     [data-testid="stMetricDelta"] {
         animation: bounceIn 1s ease-out;
     }
@@ -158,6 +164,9 @@ st.markdown("""
     .stAlert {
         animation: slideInRight 0.5s ease-out;
     }
+    
+    /* Remover cores fixas de texto - deixa Streamlit usar tema padrão */
+    /* Streamlit já ajusta automaticamente as cores baseado no tema selecionado */
     
     @keyframes slideInRight {
         from {
@@ -474,19 +483,22 @@ def main():
     )
     st.info(f"📅 Período analisado: **{periodo_info}** | 📊 {len(df_operacional_filtrado):,} transações operacionais".replace(',', '.'))
     
-    # KPIs principais fixos no topo
-    st.markdown("---")
-    kpis = processor.calcular_kpis(df_operacional_filtrado)
+    # KPIs principais fixos no topo - APENAS SE HOUVER FILTRO DE GRUPOS ATIVO
+    tem_filtro_grupos = filtros['grupos'] is not None and len(filtros['grupos']) > 0
     
-    # Criar container com background destacado para os KPIs
-    with st.container():
-        st.markdown("### 📊 Resumo Executivo")
-        renderizar_kpis(kpis)
+    if tem_filtro_grupos:
+        st.markdown("---")
+        kpis = processor.calcular_kpis(df_operacional_filtrado)
         
-        # Composição detalhada dos KPIs (visão operacional)
-        renderizar_composicao_kpis(df_operacional_filtrado)
-    
-    st.markdown("---")
+        # Criar container com background destacado para os KPIs
+        with st.container():
+            st.markdown("### 📊 Resumo Executivo")
+            renderizar_kpis(kpis)
+            
+            # Composição detalhada dos KPIs (visão operacional)
+            renderizar_composicao_kpis(df_operacional_filtrado)
+        
+        st.markdown("---")
     
     # ============================================================================
     # NAVEGAÇÃO POR ABAS
@@ -494,17 +506,141 @@ def main():
     
     # Abas de visualizações
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "💳 Contas Bancárias",
         "📈 Evolução Temporal",
         "🏢 Análise por Grupo",
         "📑 Análise por Categoria",
         "🔍 Análise por Natureza",
         "🏪 Fornecedores",
         "💰 Análise Financeira",
-        "💳 Contas Bancárias",
         "📋 Dados Detalhados"
     ])
     
     with tab1:
+        st.success("🔍 **Visão Completa** - Inclui TODAS as movimentações (inclusive transferências) para controle de caixa por conta")
+        st.subheader("💳 Saldo por Conta Bancária")
+        
+        # Calcular saldos por conta (usando visão completa com todas as transações)
+        saldos_contas = processor.calcular_saldos_por_conta(df_completo_filtrado)
+        
+        if saldos_contas:
+            # KPIs de Contas Consolidadas
+            st.markdown("### 🏦 Saldos Consolidados (Caixa Real)")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            consolidados = saldos_contas['consolidados']
+            
+            with col1:
+                st.metric(
+                    "💼 NORTHSIDE",
+                    formatar_moeda(consolidados['NORTHSIDE']),
+                    help="Soma de Lifecon5 + Lifecon7"
+                )
+            
+            with col2:
+                st.metric(
+                    "💎 ÁGATA",
+                    formatar_moeda(consolidados['ÁGATA'])
+                )
+            
+            with col3:
+                st.metric(
+                    "🏔️ BARILOCHE",
+                    formatar_moeda(consolidados['BARILOCHE'])
+                )
+            
+            with col4:
+                st.metric(
+                    "💰 TOTAL",
+                    formatar_moeda(saldos_contas['total'])
+                )
+            
+            st.markdown("---")
+            
+            # Detalhamento por conta individual
+            st.markdown("### 🏦 Detalhamento por Conta Individual")
+            
+            por_conta = saldos_contas['por_conta']
+            
+            # Criar DataFrame para exibição
+            dados_contas = []
+            for conta, info in por_conta.items():
+                # Remover prefixo "Fluxo" e formatar nome
+                nome_conta = conta.replace('Fluxo', '')
+                dados_contas.append({
+                    'Conta': nome_conta,
+                    'Saldo': info['saldo'],
+                    'Entradas': info['entradas'],
+                    'Saídas': info['saidas'],
+                    'Transações': info['transacoes']
+                })
+            
+            df_contas = pd.DataFrame(dados_contas).sort_values('Saldo', ascending=False)
+            
+            # Formatar para exibição
+            df_contas_display = df_contas.copy()
+            df_contas_display['Saldo'] = df_contas_display['Saldo'].apply(formatar_moeda)
+            df_contas_display['Entradas'] = df_contas_display['Entradas'].apply(formatar_moeda)
+            df_contas_display['Saídas'] = df_contas_display['Saídas'].apply(formatar_moeda)
+            
+            st.dataframe(
+                df_contas_display,
+                hide_index=True,
+                use_container_width=True,
+                height=250
+            )
+            
+            # Gráfico de barras
+            st.markdown("---")
+            st.markdown("### 📊 Comparativo de Saldos")
+            
+            fig_contas = go.Figure()
+            
+            # Cores personalizadas
+            cores = {
+                'Lifecon5': '#3B82F6',
+                'Lifecon7': '#60A5FA', 
+                'Agata': '#8B5CF6',
+                'Bariloche': '#EC4899'
+            }
+            
+            for _, row in df_contas.iterrows():
+                cor = cores.get(row['Conta'], '#6B7280')
+                fig_contas.add_trace(
+                    go.Bar(
+                        name=row['Conta'],
+                        x=[row['Conta']],
+                        y=[row['Saldo']],
+                        text=[formatar_moeda(row['Saldo'])],
+                        textposition='outside',
+                        marker_color=cor,
+                        hovertemplate='<b>%{x}</b><br>Saldo: %{text}<extra></extra>'
+                    )
+                )
+            
+            fig_contas.update_layout(
+                title='Saldo em Cada Conta Bancária',
+                template='plotly_white',
+                height=600,
+                width=800,
+                showlegend=False,
+                xaxis_title='Conta',
+                yaxis_title='Saldo (R$)',
+                bargap=0.3  # Espaçamento entre barras para deixá-las mais esbeltas
+            )
+            
+            # Centralizar o gráfico com largura controlada
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.plotly_chart(fig_contas, use_container_width=False)
+            
+            # Informação adicional
+            st.info("💡 **Nota:** Estes são os saldos reais das contas bancárias, diferentes da análise por GRUPO (que classifica despesas por projeto).")
+        else:
+            st.warning("⚠️ Não foi possível calcular saldos por conta bancária.")
+    
+    with tab2:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Evolução Temporal do Fluxo de Caixa")
         df_temporal = processor.agregacao_temporal(df_operacional_filtrado, freq='ME')
@@ -515,7 +651,7 @@ def main():
         fig_comparativo = Visualizations.criar_grafico_comparativo_mensal(df_operacional_filtrado)
         st.plotly_chart(fig_comparativo, use_container_width=True)
     
-    with tab2:
+    with tab3:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Distribuição por Grupo/Projeto")
         
@@ -537,7 +673,7 @@ def main():
                 use_container_width=True
             )
     
-    with tab3:
+    with tab4:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Distribuição por Categoria/Natureza")
         
@@ -648,7 +784,7 @@ def main():
             else:
                 st.warning("Nenhuma receita disponível no período filtrado")
     
-    with tab4:
+    with tab5:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("🔍 Análise Detalhada por Natureza")
         
@@ -812,7 +948,7 @@ def main():
         else:
             st.warning("⚠️ Nenhum dado encontrado para o grupo selecionado.")
     
-    with tab5:
+    with tab6:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Análise de Fornecedores")
         
@@ -834,7 +970,7 @@ def main():
                 height=500
             )
     
-    with tab6:
+    with tab7:
         st.success("🔍 **Visão Completa** - Inclui todas as movimentações financeiras para análise de aportes e auditoria")
         st.subheader("💰 Análise Financeira - Aportes SCP")
         
@@ -1134,130 +1270,6 @@ def main():
         else:
             st.info("ℹ️ Nenhuma transação financeira encontrada no período filtrado.")
     
-    with tab7:
-        st.success("🔍 **Visão Completa** - Inclui TODAS as movimentações (inclusive transferências) para controle de caixa por conta")
-        st.subheader("💳 Saldo por Conta Bancária")
-        
-        # Calcular saldos por conta (usando visão completa com todas as transações)
-        saldos_contas = processor.calcular_saldos_por_conta(df_completo_filtrado)
-        
-        if saldos_contas:
-            # KPIs de Contas Consolidadas
-            st.markdown("### 🏦 Saldos Consolidados (Caixa Real)")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            consolidados = saldos_contas['consolidados']
-            
-            with col1:
-                st.metric(
-                    "💼 NORTHSIDE",
-                    formatar_moeda(consolidados['NORTHSIDE']),
-                    help="Soma de Lifecon5 + Lifecon7"
-                )
-            
-            with col2:
-                st.metric(
-                    "💎 ÁGATA",
-                    formatar_moeda(consolidados['ÁGATA'])
-                )
-            
-            with col3:
-                st.metric(
-                    "🏔️ BARILOCHE",
-                    formatar_moeda(consolidados['BARILOCHE'])
-                )
-            
-            with col4:
-                st.metric(
-                    "💰 TOTAL",
-                    formatar_moeda(saldos_contas['total'])
-                )
-            
-            st.markdown("---")
-            
-            # Detalhamento por conta individual
-            st.markdown("### 🏦 Detalhamento por Conta Individual")
-            
-            por_conta = saldos_contas['por_conta']
-            
-            # Criar DataFrame para exibição
-            dados_contas = []
-            for conta, info in por_conta.items():
-                # Remover prefixo "Fluxo" e formatar nome
-                nome_conta = conta.replace('Fluxo', '')
-                dados_contas.append({
-                    'Conta': nome_conta,
-                    'Saldo': info['saldo'],
-                    'Entradas': info['entradas'],
-                    'Saídas': info['saidas'],
-                    'Transações': info['transacoes']
-                })
-            
-            df_contas = pd.DataFrame(dados_contas).sort_values('Saldo', ascending=False)
-            
-            # Formatar para exibição
-            df_contas_display = df_contas.copy()
-            df_contas_display['Saldo'] = df_contas_display['Saldo'].apply(formatar_moeda)
-            df_contas_display['Entradas'] = df_contas_display['Entradas'].apply(formatar_moeda)
-            df_contas_display['Saídas'] = df_contas_display['Saídas'].apply(formatar_moeda)
-            
-            st.dataframe(
-                df_contas_display,
-                hide_index=True,
-                use_container_width=True,
-                height=250
-            )
-            
-            # Gráfico de barras
-            st.markdown("---")
-            st.markdown("### 📊 Comparativo de Saldos")
-            
-            fig_contas = go.Figure()
-            
-            # Cores personalizadas
-            cores = {
-                'Lifecon5': '#3B82F6',
-                'Lifecon7': '#60A5FA', 
-                'Agata': '#8B5CF6',
-                'Bariloche': '#EC4899'
-            }
-            
-            for _, row in df_contas.iterrows():
-                cor = cores.get(row['Conta'], '#6B7280')
-                fig_contas.add_trace(
-                    go.Bar(
-                        name=row['Conta'],
-                        x=[row['Conta']],
-                        y=[row['Saldo']],
-                        text=[formatar_moeda(row['Saldo'])],
-                        textposition='outside',
-                        marker_color=cor,
-                        hovertemplate='<b>%{x}</b><br>Saldo: %{text}<extra></extra>'
-                    )
-                )
-            
-            fig_contas.update_layout(
-                title='Saldo em Cada Conta Bancária',
-                template='plotly_white',
-                height=600,
-                width=800,
-                showlegend=False,
-                xaxis_title='Conta',
-                yaxis_title='Saldo (R$)',
-                bargap=0.3  # Espaçamento entre barras para deixá-las mais esbeltas
-            )
-            
-            # Centralizar o gráfico com largura controlada
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.plotly_chart(fig_contas, use_container_width=False)
-            
-            # Informação adicional
-            st.info("💡 **Nota:** Estes são os saldos reais das contas bancárias, diferentes da análise por GRUPO (que classifica despesas por projeto).")
-        else:
-            st.warning("⚠️ Não foi possível calcular saldos por conta bancária.")
-    
     with tab8:
         st.subheader("Dados Detalhados")
         
@@ -1331,7 +1343,7 @@ def main():
     st.markdown("---")
     st.markdown(
         """
-        <div style='text-align: center; color: #6b7280; padding: 1rem;'>
+        <div style='text-align: center; opacity: 0.7; padding: 1rem;'>
             Dashboard Financeiro v1.0 | Desenvolvido com ❤️ usando Python, Streamlit e Plotly
         </div>
         """,

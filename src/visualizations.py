@@ -32,7 +32,7 @@ class Visualizations:
     @staticmethod
     def _aplicar_animacoes(fig: go.Figure) -> go.Figure:
         """
-        Aplica configurações de hover suave (sem animações problemáticas)
+        Aplica configurações de hover suave adaptáveis ao tema
         
         Args:
             fig: Figura Plotly
@@ -40,12 +40,15 @@ class Visualizations:
         Returns:
             Figura com hover melhorado
         """
-        # Apenas hover suave, sem animações
+        # Hoverlabel adaptável - usa cores que funcionam bem em ambos os temas
+        # Fundo semi-transparente escuro com texto claro para melhor contraste
         fig.update_layout(
             hoverlabel=dict(
-                bgcolor="white",
+                bgcolor="rgba(30, 30, 30, 0.9)",  # Fundo escuro semi-transparente
+                bordercolor="rgba(255, 255, 255, 0.2)",  # Borda clara sutil
                 font_size=14,
-                font_family="Arial"
+                font_family="Arial",
+                font_color="white"  # Texto branco para contraste
             )
         )
         
@@ -160,7 +163,7 @@ class Visualizations:
                 ),
                 text=df_top['Saida_Display'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=13, color='#1f2937', family='Arial'),
+                textfont=dict(size=13, color='white', family='Arial'),
                 hovertemplate='<b>%{y}</b><br>Saídas: R$ %{x:,.2f}<extra></extra>',
                 cliponaxis=False
             )
@@ -270,7 +273,7 @@ class Visualizations:
                 ),
                 text=df_top['Valor_Abs'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=13, color='#1f2937', family='Arial'),
+                textfont=dict(size=13, color='white', family='Arial'),
                 hovertemplate='<b>%{y}</b><br>Total: R$ %{x:,.2f}<extra></extra>',
                 cliponaxis=False
             )
@@ -320,7 +323,7 @@ class Visualizations:
                     line=dict(color='white', width=3)
                 ),
                 textinfo='label+percent',
-                textfont=dict(size=12, family='Arial', color='#1f2937'),
+                textfont=dict(size=12, family='Arial', color='white'),
                 hovertemplate='<b>%{label}</b><br>Valor: R$ %{value:,.2f}<br>Percentual: %{percent}<extra></extra>',
                 pull=[0.05] * len(df_subgrupo),  # Destacar todas as fatias sutilmente
                 opacity=0.95
@@ -491,7 +494,7 @@ class Visualizations:
                 ),
                 text=df_plot['Juros_Acumulados'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=13, color='#1f2937', family='Arial'),
+                textfont=dict(size=13, color='white', family='Arial'),
                 hovertemplate='<b>%{y}</b><br>Juros: R$ %{x:,.2f}<extra></extra>',
                 cliponaxis=False
             )
@@ -753,7 +756,7 @@ class Visualizations:
                     ),
                     text=df_combo['Saida'].apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
-                    textfont=dict(size=12, color='#1f2937', family='Arial'),
+                    textfont=dict(size=12, color='white', family='Arial'),
                     hovertemplate='<b>%{y}</b><br>Valor: R$ %{x:,.2f}<extra></extra>',
                     cliponaxis=False
                 )
@@ -858,7 +861,7 @@ class Visualizations:
                     ),
                     text=df_combo['Entrada'].apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
-                    textfont=dict(size=12, color='#1f2937', family='Arial'),
+                    textfont=dict(size=12, color='white', family='Arial'),
                     hovertemplate='<b>%{y}</b><br>Receita: R$ %{x:,.2f}<extra></extra>',
                     cliponaxis=False
                 )
@@ -959,7 +962,7 @@ class Visualizations:
                 ),
                 text=df_agregado['Saida'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=12, color='#1f2937', family='Arial'),
+                textfont=dict(size=12, color='white', family='Arial'),
                 hovertemplate='<b>%{y}</b><br>Valor: R$ %{x:,.2f}<extra></extra>',
                 cliponaxis=False
             )
@@ -1049,7 +1052,7 @@ class Visualizations:
                 ),
                 text=df_agregado['Entrada'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=12, color='#1f2937', family='Arial'),
+                textfont=dict(size=12, color='white', family='Arial'),
                 hovertemplate='<b>%{y}</b><br>Receita: R$ %{x:,.2f}<extra></extra>',
                 cliponaxis=False
             )
