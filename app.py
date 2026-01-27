@@ -533,8 +533,8 @@ def main():
             
             with col1:
                 st.metric(
-                    "💼 NORTHSIDE",
-                    formatar_moeda(consolidados['NORTHSIDE']),
+                    "💼 RITHMO",
+                    formatar_moeda(consolidados['RITHMO']),
                     help="Soma de Lifecon5 + Lifecon7"
                 )
             

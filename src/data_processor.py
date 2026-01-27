@@ -79,6 +79,11 @@ class DataProcessor:
             if col in df.columns:
                 df[col] = df[col].fillna('NÃO INFORMADO').str.strip().str.upper()
         
+        # REGRA GLOBAL: Renomear NORTHSIDE para RITHMO
+        # Todos os registros com Grupo "NORTHSIDE" serão exibidos como "RITHMO" na interface
+        if 'Grupo' in df.columns:
+            df.loc[df['Grupo'] == 'NORTHSIDE', 'Grupo'] = 'RITHMO'
+        
         # Remover linhas com data inválida
         df = df.dropna(subset=['Data'])
         
@@ -720,12 +725,12 @@ class DataProcessor:
                 'transacoes': len(df_conta)
             }
         
-        # Consolidar NORTHSIDE (Lifecon5 + Lifecon7)
+        # Consolidar RITHMO (Lifecon5 + Lifecon7) - anteriormente NORTHSIDE
         saldo_lifecon5 = saldos_por_conta.get('FluxoLifecon5', {}).get('saldo', 0)
         saldo_lifecon7 = saldos_por_conta.get('FluxoLifecon7', {}).get('saldo', 0)
         
         saldos_consolidados = {
-            'NORTHSIDE': saldo_lifecon5 + saldo_lifecon7,
+            'RITHMO': saldo_lifecon5 + saldo_lifecon7,
             'ÁGATA': saldos_por_conta.get('FluxoAgata', {}).get('saldo', 0),
             'BARILOCHE': saldos_por_conta.get('FluxoBariloche', {}).get('saldo', 0)
         }
