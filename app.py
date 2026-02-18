@@ -659,8 +659,6 @@ def main():
         AREA_RITHMO_M2 = 11_461.32
         NATUREZAS_CUSTO_M2 = [
             'CUSTO DA ÁREA (ROÇADA, CERCAMENTO E OUTROS)',
-            'REGISTRO DE IMÓVEIS',
-            'IPTU / ITR',
             'SERVIÇOS DE TOPOGRAFIA',
             'PROJETOS DE EDIFICAÇÕES',
             'ASSESSORIA TÉCNICA',
