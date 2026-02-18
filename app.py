@@ -641,14 +641,18 @@ def main():
             st.warning("⚠️ Não foi possível calcular saldos por conta bancária.")
     
     with tab2:
-        st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
+        # Evolução Temporal: sempre filtrada por NORTHSIDE / RITHMO
+        df_evolucao_rithmo = df_operacional_filtrado[
+            df_operacional_filtrado['Grupo'] == 'RITHMO'
+        ].copy()
+        st.info("🎯 **Visão Operacional** — NORTHSIDE / RITHMO | Análise sem transferências internas")
         st.subheader("Evolução Temporal do Fluxo de Caixa")
-        df_temporal = processor.agregacao_temporal(df_operacional_filtrado, freq='ME')
+        df_temporal = processor.agregacao_temporal(df_evolucao_rithmo, freq='ME')
         fig_temporal = Visualizations.criar_grafico_evolucao_temporal(df_temporal)
         st.plotly_chart(fig_temporal, use_container_width=True)
         
         st.subheader("Comparativo Mensal")
-        fig_comparativo = Visualizations.criar_grafico_comparativo_mensal(df_operacional_filtrado)
+        fig_comparativo = Visualizations.criar_grafico_comparativo_mensal(df_evolucao_rithmo)
         st.plotly_chart(fig_comparativo, use_container_width=True)
     
     with tab3:
@@ -684,9 +688,13 @@ def main():
                 value=formatar_moeda(total_custo_m2),
             )
         with card2:
+            ORCADO_M2 = 392.62
+            delta_m2 = custo_por_m2 - ORCADO_M2
             st.metric(
                 label="📐 Custo por m²",
                 value=formatar_moeda(custo_por_m2),
+                delta=f"{formatar_moeda(delta_m2)} vs orçado ({formatar_moeda(ORCADO_M2)}/m²)",
+                delta_color="inverse",
             )
         with card3:
             st.metric(
