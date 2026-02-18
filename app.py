@@ -690,11 +690,20 @@ def main():
         with card2:
             ORCADO_M2 = 392.62
             delta_m2 = custo_por_m2 - ORCADO_M2
+            cor = "#00c853" if delta_m2 < 0 else "#ff5252"
+            seta = "↓" if delta_m2 < 0 else "↑"
             st.metric(
                 label="📐 Custo por m²",
                 value=formatar_moeda(custo_por_m2),
-                delta=f"{formatar_moeda(delta_m2)} vs orçado ({formatar_moeda(ORCADO_M2)}/m²)",
-                delta_color="inverse",
+            )
+            st.markdown(
+                f"""<div style="color:{cor}; font-size:16px; font-weight:700; margin-top:-12px;">
+                    {seta} {formatar_moeda(abs(delta_m2))}
+                    <span style="color:#aaaaaa; font-size:13px; font-weight:400;">
+                        &nbsp;vs orçado ({formatar_moeda(ORCADO_M2)}/m²)
+                    </span>
+                </div>""",
+                unsafe_allow_html=True,
             )
         with card3:
             st.metric(
