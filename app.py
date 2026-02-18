@@ -692,27 +692,17 @@ def main():
             delta_m2 = custo_por_m2 - ORCADO_M2
             cor = "#00c853" if delta_m2 < 0 else "#ff5252"
             seta = "↓" if delta_m2 < 0 else "↑"
+            st.metric(
+                label="📐 Custo por m²",
+                value=formatar_moeda(custo_por_m2),
+            )
             st.markdown(
-                f"""
-                <div style="
-                    background-color: #1e1e2e;
-                    border: 1px solid #2e2e3e;
-                    border-radius: 8px;
-                    padding: 16px 20px 14px 20px;
-                    line-height: 1.4;
-                ">
-                    <div style="color:#aaaaaa; font-size:14px; margin-bottom:6px;">📐 Custo por m²</div>
-                    <div style="color:#ffffff; font-size:32px; font-weight:700; margin-bottom:10px;">
-                        {formatar_moeda(custo_por_m2)}
-                    </div>
-                    <div style="color:{cor}; font-size:17px; font-weight:700;">
-                        {seta} {formatar_moeda(abs(delta_m2))}
-                    </div>
-                    <div style="color:#aaaaaa; font-size:14px; margin-top:3px;">
-                        vs orçado {formatar_moeda(ORCADO_M2)}/m²
-                    </div>
-                </div>
-                """,
+                f"""<div style="color:{cor}; font-size:16px; font-weight:700; margin-top:-12px;">
+                    {seta} {formatar_moeda(abs(delta_m2))}
+                    <span style="color:#aaaaaa; font-size:13px; font-weight:400;">
+                        &nbsp;vs orçado ({formatar_moeda(ORCADO_M2)}/m²)
+                    </span>
+                </div>""",
                 unsafe_allow_html=True,
             )
         with card3:
