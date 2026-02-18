@@ -697,9 +697,9 @@ def main():
                 value=formatar_moeda(custo_por_m2),
             )
             st.markdown(
-                f"""<div style="color:{cor}; font-size:16px; font-weight:700; margin-top:-12px;">
+                f"""<div style="color:{cor}; font-size:20px; font-weight:700; margin-top:-12px;">
                     {seta} {formatar_moeda(abs(delta_m2))}
-                    <span style="color:#aaaaaa; font-size:13px; font-weight:400;">
+                    <span style="color:#aaaaaa; font-size:16px; font-weight:400;">
                         &nbsp;vs orçado ({formatar_moeda(ORCADO_M2)}/m²)
                     </span>
                 </div>""",
