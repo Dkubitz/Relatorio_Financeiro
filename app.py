@@ -654,7 +654,63 @@ def main():
     with tab3:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Distribuição por Grupo/Projeto")
-        
+
+        # --- Análise de Custo por m² — NORTHSIDE / Rithmo ---
+        AREA_RITHMO_M2 = 11_461.32
+        NATUREZAS_CUSTO_M2 = [
+            'CUSTO DA ÁREA (ROÇADA, CERCAMENTO E OUTROS)',
+            'REGISTRO DE IMÓVEIS',
+            'IPTU / ITR',
+            'SERVIÇOS DE TOPOGRAFIA',
+            'PROJETOS DE EDIFICAÇÕES',
+            'ASSESSORIA TÉCNICA',
+            'FORNECIMENTO DE MATERIAL ELÉTRICO',
+            'DESPESAS INICIAIS (CALCAMENTO, JARDINAMENTO, LIGACAO DE AGUA E ENERGIA ENTRE OUTROS)',
+            'DESPESAS INICIAIS (CALÇAMENTO, JARDINAMENTO, LIGAÇÃO DE ÁGUA E ENERGIA ENTRE OUTROS)',
+            'COMISSÃO/INTERMEDIAÇÃO',
+            'MARKETING',
+            'OBRAS DE INFRAESTRUTURA',
+            'SEGURANÇA',
+        ]
+
+        df_northside_op = df_operacional_filtrado[df_operacional_filtrado['Grupo'] == 'NORTHSIDE'].copy()
+        df_custo_m2 = df_northside_op[df_northside_op['Natureza'].isin(NATUREZAS_CUSTO_M2)]
+        total_custo_m2 = abs(df_custo_m2['Saida'].sum())
+        custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
+
+        st.markdown("#### 📐 Custo por m² — NORTHSIDE / Rithmo")
+        card1, card2, card3 = st.columns(3)
+        with card1:
+            st.metric(
+                label="💰 Total Investido (seleção)",
+                value=formatar_moeda(total_custo_m2),
+            )
+        with card2:
+            st.metric(
+                label="📐 Custo por m²",
+                value=formatar_moeda(custo_por_m2),
+            )
+        with card3:
+            st.metric(
+                label="📏 Área do Empreendimento",
+                value=f"{AREA_RITHMO_M2:_.2f} m²".replace('.', ',').replace('_', '.'),
+            )
+
+        with st.expander("🔍 Ver detalhamento por natureza"):
+            df_det = df_custo_m2.groupby('Natureza')['Saida'].sum().reset_index()
+            df_det['Total'] = df_det['Saida'].apply(lambda x: formatar_moeda(abs(x)))
+            df_det['Custo/m²'] = df_det['Saida'].apply(
+                lambda x: formatar_moeda(abs(x) / AREA_RITHMO_M2)
+            )
+            df_det = df_det.sort_values('Saida').reset_index(drop=True)
+            st.dataframe(
+                df_det[['Natureza', 'Total', 'Custo/m²']],
+                hide_index=True,
+                use_container_width=True,
+            )
+
+        st.divider()
+
         col1, col2 = st.columns([2, 1])
         
         with col1:
