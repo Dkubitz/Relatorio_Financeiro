@@ -673,7 +673,7 @@ def main():
             'SEGURANÇA',
         ]
 
-        df_northside_op = df_operacional_filtrado[df_operacional_filtrado['Grupo'] == 'NORTHSIDE'].copy()
+        df_northside_op = df_operacional_filtrado[df_operacional_filtrado['Grupo'] == 'RITHMO'].copy()
         df_custo_m2 = df_northside_op[df_northside_op['Natureza'].isin(NATUREZAS_CUSTO_M2)]
         total_custo_m2 = abs(df_custo_m2['Saida'].sum())
         custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
