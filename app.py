@@ -613,14 +613,14 @@ def main():
                         y=[row['Saldo']],
                         text=[formatar_moeda(row['Saldo'])],
                         textposition='outside',
-                        marker_color=cor,
+                        marker=dict(color=cor, opacity=0.85, cornerradius=8),
                         hovertemplate='<b>%{x}</b><br>Saldo: %{text}<extra></extra>'
                     )
                 )
-            
+
             fig_contas.update_layout(
                 title='Saldo em Cada Conta Bancária',
-                template='plotly_white',
+                template='plotly_dark',
                 height=600,
                 width=800,
                 showlegend=False,
@@ -900,8 +900,15 @@ def main():
             # Gráfico de barras por subgrupo
             fig_subgrupo = go.Figure()
             
+            cores_grupo_subgrupo = {
+                'BARILOCHE': '#f97316',
+                'RITHMO':    '#3b82f6',
+                'NORTHSIDE': '#3b82f6',
+                'ÁGATA':     '#8b5cf6',
+            }
             for grupo in df_subgrupo_resumo['Grupo'].unique():
                 df_grupo_temp = df_subgrupo_resumo[df_subgrupo_resumo['Grupo'] == grupo]
+                cor = cores_grupo_subgrupo.get(grupo, '#6b7280')
                 fig_subgrupo.add_trace(
                     go.Bar(
                         name=grupo,
@@ -909,13 +916,14 @@ def main():
                         y=df_grupo_temp['Saida_Abs'],
                         text=df_grupo_temp['Saida_Abs'].apply(lambda x: f'R$ {x:,.0f}'),
                         textposition='outside',
+                        marker=dict(color=cor, opacity=0.85, cornerradius=8),
                         hovertemplate='<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>'
                     )
                 )
-            
+
             fig_subgrupo.update_layout(
                 title='Comparativo de Saídas por Subgrupo e Grupo',
-                template='plotly_white',
+                template='plotly_dark',
                 height=500,
                 xaxis_title='Subgrupo',
                 yaxis_title='Valor (R$)',

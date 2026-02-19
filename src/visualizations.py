@@ -72,7 +72,6 @@ class Visualizations:
             vertical_spacing=0.15
         )
         
-        # Gráfico de barras - Entradas e Saídas com gradiente
         fig.add_trace(
             go.Bar(
                 x=df_temporal['Data'],
@@ -80,14 +79,14 @@ class Visualizations:
                 name='Entradas',
                 marker=dict(
                     color=Visualizations.COLOR_ENTRADA,
-                    line=dict(color='rgba(255,255,255,0.3)', width=1),
-                    opacity=0.9
+                    opacity=0.85,
+                    cornerradius=6,
                 ),
                 hovertemplate='<b>Entrada</b><br>Data: %{x|%b/%Y}<br>Valor: R$ %{y:,.2f}<extra></extra>'
             ),
             row=1, col=1
         )
-        
+
         fig.add_trace(
             go.Bar(
                 x=df_temporal['Data'],
@@ -95,8 +94,8 @@ class Visualizations:
                 name='Saídas',
                 marker=dict(
                     color=Visualizations.COLOR_SAIDA,
-                    line=dict(color='rgba(255,255,255,0.3)', width=1),
-                    opacity=0.9
+                    opacity=0.85,
+                    cornerradius=6,
                 ),
                 hovertemplate='<b>Saída</b><br>Data: %{x|%b/%Y}<br>Valor: R$ %{y:,.2f}<extra></extra>'
             ),
