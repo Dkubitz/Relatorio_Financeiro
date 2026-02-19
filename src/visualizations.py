@@ -23,7 +23,7 @@ class Visualizations:
     COLOR_SALDO = '#3b82f6'    # Azul
     COLOR_ACCENT = '#8b5cf6'   # Roxo
     
-    TEMPLATE = 'plotly_white'
+    TEMPLATE = 'plotly_dark'
     
     # Configurações de animação padrão
     ANIMATION_DURATION = 800  # ms
@@ -150,16 +150,15 @@ class Visualizations:
         
         fig = go.Figure()
         
-        # Barras com gradiente vermelho mantido
         fig.add_trace(
             go.Bar(
                 y=df_top['Grupo'],
                 x=df_top['Saida_Display'],
                 orientation='h',
                 marker=dict(
-                    color=df_top['Saida_Display'],
-                    colorscale='Reds',
-                    showscale=False
+                    color=Visualizations.COLOR_SAIDA,
+                    opacity=0.85,
+                    cornerradius=8,
                 ),
                 text=df_top['Saida_Display'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
@@ -260,16 +259,15 @@ class Visualizations:
         
         fig = go.Figure()
         
-        # Barras com gradiente azul mantido
         fig.add_trace(
             go.Bar(
                 y=df_top['FORNECEDOR'],
                 x=df_top['Valor_Abs'],
                 orientation='h',
                 marker=dict(
-                    color=df_top['Valor_Abs'],
-                    colorscale='Blues',
-                    showscale=False
+                    color=Visualizations.COLOR_ACCENT,
+                    opacity=0.85,
+                    cornerradius=8,
                 ),
                 text=df_top['Valor_Abs'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
@@ -481,16 +479,15 @@ class Visualizations:
         
         fig = go.Figure()
         
-        # Barras com gradiente vermelho mantido
         fig.add_trace(
             go.Bar(
                 y=df_plot['Label'],
                 x=df_plot['Juros_Acumulados'],
                 orientation='h',
                 marker=dict(
-                    color=df_plot['Juros_Acumulados'],
-                    colorscale='Reds',
-                    showscale=False
+                    color=Visualizations.COLOR_SAIDA,
+                    opacity=0.85,
+                    cornerradius=8,
                 ),
                 text=df_plot['Juros_Acumulados'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
@@ -654,14 +651,14 @@ class Visualizations:
                     x=df_entradas['Entrada'],
                     orientation='h',
                     name='Entradas',
-                    marker_color=Visualizations.COLOR_ENTRADA,
+                    marker=dict(color=Visualizations.COLOR_ENTRADA, opacity=0.85, cornerradius=8),
                     text=df_entradas['Entrada'].apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
                     hovertemplate='<b>%{y}</b><br>Valor: R$ %{x:,.2f}<extra></extra>'
                 ),
                 row=1, col=1
             )
-        
+
         # Saídas
         if len(df_saidas) > 0:
             fig.add_trace(
@@ -670,7 +667,7 @@ class Visualizations:
                     x=df_saidas['Saida'].abs(),
                     orientation='h',
                     name='Saídas',
-                    marker_color=Visualizations.COLOR_SAIDA,
+                    marker=dict(color=Visualizations.COLOR_SAIDA, opacity=0.85, cornerradius=8),
                     text=df_saidas['Saida'].abs().apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
                     hovertemplate='<b>%{y}</b><br>Valor: R$ %{x:,.2f}<extra></extra>'
@@ -719,40 +716,40 @@ class Visualizations:
         
         graficos = {}
         
-        # Cores por grupo para consistência visual
+        # Cores sólidas por grupo
         cores_grupo = {
-            'NORTHSIDE': 'Blues',
-            'ÁGATA': 'Purples',
-            'BARILOCHE': 'Oranges'
+            'RITHMO': '#3b82f6',
+            'NORTHSIDE': '#3b82f6',
+            'ÁGATA': '#8b5cf6',
+            'BARILOCHE': '#f97316',
         }
-        
+
         for _, row in combinacoes.iterrows():
             grupo = row['Grupo']
             subgrupo = row['Subgrupo']
-            
+
             # Filtrar dados desta combinação
             df_combo = df_agregado[
-                (df_agregado['Grupo'] == grupo) & 
+                (df_agregado['Grupo'] == grupo) &
                 (df_agregado['Subgrupo'] == subgrupo)
             ].copy()
-            
+
             df_combo = df_combo.sort_values('Saida', ascending=True)
-            
+
             # Criar gráfico
             fig = go.Figure()
-            
-            # Escolher cor baseada no grupo
-            colorscale = cores_grupo.get(grupo, 'Greens')
-            
+
+            cor = cores_grupo.get(grupo, Visualizations.COLOR_SAIDA)
+
             fig.add_trace(
                 go.Bar(
                     y=df_combo['Natureza'],
                     x=df_combo['Saida'],
                     orientation='h',
                     marker=dict(
-                        color=df_combo['Saida'],
-                        colorscale=colorscale,
-                        showscale=False
+                        color=cor,
+                        opacity=0.85,
+                        cornerradius=8,
                     ),
                     text=df_combo['Saida'].apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
@@ -824,40 +821,30 @@ class Visualizations:
         
         graficos = {}
         
-        # Cores verdes para receitas (consistência visual)
-        cores_grupo = {
-            'NORTHSIDE': 'Greens',
-            'ÁGATA': 'Greens',
-            'BARILOCHE': 'Greens'
-        }
-        
         for _, row in combinacoes.iterrows():
             grupo = row['Grupo']
             subgrupo = row['Subgrupo']
-            
+
             # Filtrar dados desta combinação
             df_combo = df_agregado[
-                (df_agregado['Grupo'] == grupo) & 
+                (df_agregado['Grupo'] == grupo) &
                 (df_agregado['Subgrupo'] == subgrupo)
             ].copy()
-            
+
             df_combo = df_combo.sort_values('Entrada', ascending=True)
-            
+
             # Criar gráfico
             fig = go.Figure()
-            
-            # Escolher cor verde para receitas
-            colorscale = cores_grupo.get(grupo, 'Greens')
-            
+
             fig.add_trace(
                 go.Bar(
                     y=df_combo['Natureza'],
                     x=df_combo['Entrada'],
                     orientation='h',
                     marker=dict(
-                        color=df_combo['Entrada'],
-                        colorscale=colorscale,
-                        showscale=False
+                        color=Visualizations.COLOR_ENTRADA,
+                        opacity=0.85,
+                        cornerradius=8,
                     ),
                     text=df_combo['Entrada'].apply(lambda x: f'R$ {x:,.0f}'),
                     textposition='outside',
@@ -940,25 +927,26 @@ class Visualizations:
             )
             return fig
         
-        # Cores por grupo
+        # Cores sólidas por grupo
         cores_grupo = {
-            'NORTHSIDE': 'Blues',
-            'ÁGATA': 'Purples',
-            'BARILOCHE': 'Oranges'
+            'RITHMO': '#3b82f6',
+            'NORTHSIDE': '#3b82f6',
+            'ÁGATA': '#8b5cf6',
+            'BARILOCHE': '#f97316',
         }
-        colorscale = cores_grupo.get(grupo, 'Reds')
-        
+        cor = cores_grupo.get(grupo, Visualizations.COLOR_SAIDA)
+
         fig = go.Figure()
-        
+
         fig.add_trace(
             go.Bar(
                 y=df_agregado['Natureza'],
                 x=df_agregado['Saida'],
                 orientation='h',
                 marker=dict(
-                    color=df_agregado['Saida'],
-                    colorscale=colorscale,
-                    showscale=False
+                    color=cor,
+                    opacity=0.85,
+                    cornerradius=8,
                 ),
                 text=df_agregado['Saida'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
@@ -1039,16 +1027,16 @@ class Visualizations:
             return fig
         
         fig = go.Figure()
-        
+
         fig.add_trace(
             go.Bar(
                 y=df_agregado['Natureza'],
                 x=df_agregado['Entrada'],
                 orientation='h',
                 marker=dict(
-                    color=df_agregado['Entrada'],
-                    colorscale='Greens',
-                    showscale=False
+                    color=Visualizations.COLOR_ENTRADA,
+                    opacity=0.85,
+                    cornerradius=8,
                 ),
                 text=df_agregado['Entrada'].apply(lambda x: f'R$ {x:,.0f}'),
                 textposition='outside',
