@@ -182,7 +182,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_data(ttl=300)
 def carregar_dados():
     """
     Carrega dados do arquivo CSV
