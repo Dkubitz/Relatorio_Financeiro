@@ -121,7 +121,11 @@ class DataProcessor:
             # FINANCEIRO_INTERNO: Empréstimos internos (entrada e saída se cancelam)
             if 'EMPRÉSTIMO' in natureza and subgrupo == 'FINANCEIRO':
                 return 'FINANCEIRO_INTERNO'
-            
+
+            # FINANCEIRO_INTERNO: Pagamentos indevidos / estornos (entrada e saída se anulam)
+            if 'PAGAMENTOS INDEVIDOS (ENTRADA)' in natureza or 'PAGAMENTOS INDEVIDOS (SAIDA)' in natureza:
+                return 'FINANCEIRO_INTERNO'
+
             # FINANCEIRO_EXTERNO: Movimentações financeiras reais
             if subgrupo == 'FINANCEIRO':
                 # Aportes, receitas de aplicações, taxas bancárias são FINANCEIRO_EXTERNO
