@@ -12,37 +12,10 @@ Arquitetura: Clean Architecture com Separation of Concerns
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import json
 import os
 from pathlib import Path
 import plotly.graph_objects as go
 import io
-from typing import List, Optional
-
-# Arquivo onde a seleção de naturezas do custo/m² é persistida
-CONFIG_CUSTO_M2_PATH = Path(__file__).resolve().parent / "custo_m2_naturezas.json"
-
-
-def _carregar_naturezas_custo_m2() -> Optional[List[str]]:
-    """Carrega a última seleção de naturezas para custo/m² (persistida em disco)."""
-    if not CONFIG_CUSTO_M2_PATH.exists():
-        return None
-    try:
-        with open(CONFIG_CUSTO_M2_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else None
-    except (json.JSONDecodeError, OSError):
-        return None
-
-
-def _salvar_naturezas_custo_m2(naturezas: List[str]) -> None:
-    """Persiste a seleção de naturezas para custo/m² em disco."""
-    try:
-        with open(CONFIG_CUSTO_M2_PATH, "w", encoding="utf-8") as f:
-            json.dump(naturezas, f, ensure_ascii=False, indent=2)
-    except OSError:
-        pass
-
 
 from src.data_processor import DataProcessor
 from src.visualizations import Visualizations
@@ -686,8 +659,8 @@ def main():
         st.subheader("Distribuição por Grupo/Projeto")
 
         # --- Análise de Custo por m² — NORTHSIDE / Rithmo ---
+        # Apenas Subgrupo "CUSTO DO ATIVO", excluindo as naturezas em verde
         AREA_RITHMO_M2 = 11_461.32
-        # Naturezas EXCLUÍDAS do cálculo (não entram no custo por m²)
         NATUREZAS_CUSTO_M2_EXCLUIDAS = [
             'CUSTO DA ÁREA (ROÇADA, CERCAMENTO E OUTROS)',
             'DESPESAS LEGAIS, CARTORIAIS E FUNDIÁRIAS',
@@ -695,26 +668,11 @@ def main():
             'IPTU / ITR',
         ]
 
-        df_northside_op = df_operacional_filtrado[df_operacional_filtrado['Grupo'] == 'RITHMO'].copy()
-        naturezas_rithmo = sorted(df_northside_op['Natureza'].dropna().unique().tolist())
-        # Padrão: todas as naturezas do RITHMO EXCETO as excluídas (tudo menos as em "verde")
-        naturezas_padrao = [n for n in naturezas_rithmo if n not in NATUREZAS_CUSTO_M2_EXCLUIDAS]
-        saved = _carregar_naturezas_custo_m2()
-        default_custo_m2 = [n for n in (saved or []) if n in naturezas_rithmo]
-        if not default_custo_m2:
-            default_custo_m2 = naturezas_padrao if naturezas_padrao else naturezas_rithmo
-        naturezas_custo_m2 = st.multiselect(
-            "Naturezas incluídas no Custo por m²",
-            options=naturezas_rithmo,
-            default=default_custo_m2,
-            key="naturezas_custo_m2",
-        )
-        # Persistir seleção atual para próxima sessão
-        naturezas_para_salvar = naturezas_custo_m2 if naturezas_custo_m2 else naturezas_rithmo
-        _salvar_naturezas_custo_m2(naturezas_para_salvar)
-        # Se usuário não escolheu nenhuma, usar todas do RITHMO no cálculo
-        naturezas_para_calculo = naturezas_custo_m2 if naturezas_custo_m2 else naturezas_rithmo
-        df_custo_m2 = df_northside_op[df_northside_op['Natureza'].isin(naturezas_para_calculo)]
+        df_northside_op = df_operacional_filtrado[
+            (df_operacional_filtrado['Grupo'] == 'RITHMO') &
+            (df_operacional_filtrado['Subgrupo'] == 'CUSTO DO ATIVO')
+        ].copy()
+        df_custo_m2 = df_northside_op[~df_northside_op['Natureza'].isin(NATUREZAS_CUSTO_M2_EXCLUIDAS)]
         total_custo_m2 = abs(df_custo_m2['Saida'].sum())
         custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
 
