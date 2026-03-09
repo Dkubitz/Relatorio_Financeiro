@@ -666,6 +666,7 @@ def main():
             'DESPESAS LEGAIS, CARTORIAIS E FUNDIÁRIAS',
             'COMISSÃO/INTERMEDIAÇÃO',
             'IPTU / ITR',
+            'MARKETING',
         ]
 
         df_northside_op = df_operacional_filtrado[
