@@ -590,49 +590,47 @@ def main():
                 height=250
             )
             
-            # Gráfico de barras
+            # Gráfico de pizza — comparativo de saldos
             st.markdown("---")
             st.markdown("### 📊 Comparativo de Saldos")
             
-            fig_contas = go.Figure()
-            
-            # Cores personalizadas
             cores = {
                 'Lifecon5': '#3B82F6',
-                'Lifecon7': '#60A5FA', 
+                'Lifecon7': '#60A5FA',
                 'Agata': '#8B5CF6',
-                'Bariloche': '#EC4899'
+                'Bariloche': '#EC4899',
             }
-            
-            for _, row in df_contas.iterrows():
-                cor = cores.get(row['Conta'], '#6B7280')
-                fig_contas.add_trace(
-                    go.Bar(
-                        name=row['Conta'],
-                        x=[row['Conta']],
-                        y=[row['Saldo']],
-                        text=[formatar_moeda(row['Saldo'])],
-                        textposition='outside',
-                        marker=dict(color=cor, opacity=0.85, cornerradius=8),
-                        hovertemplate='<b>%{x}</b><br>Saldo: %{text}<extra></extra>'
-                    )
-                )
+            cores_list = [
+                cores.get(row['Conta'], '#6B7280') for _, row in df_contas.iterrows()
+            ]
+            saldos_display = [formatar_moeda(s) for s in df_contas['Saldo']]
+            # Fatias proporcionais ao valor absoluto (hover mostra saldo real)
+            valores_abs = df_contas['Saldo'].abs().clip(lower=1e-9)
 
+            fig_contas = go.Figure(
+                data=[
+                    go.Pie(
+                        labels=df_contas['Conta'],
+                        values=valores_abs,
+                        hole=0.35,
+                        marker=dict(colors=cores_list, line=dict(color='white', width=2)),
+                        textinfo='label+percent',
+                        hovertemplate=(
+                            '<b>%{label}</b><br>Saldo: %{customdata}<extra></extra>'
+                        ),
+                        customdata=saldos_display,
+                    )
+                ]
+            )
             fig_contas.update_layout(
                 title='Saldo em Cada Conta Bancária',
                 template='plotly_dark',
-                height=600,
-                width=800,
-                showlegend=False,
-                xaxis_title='Conta',
-                yaxis_title='Saldo (R$)',
-                bargap=0.3  # Espaçamento entre barras para deixá-las mais esbeltas
+                height=550,
+                showlegend=True,
+                legend=dict(orientation='h', yanchor='bottom', y=-0.15, x=0.5, xanchor='center'),
             )
-            
-            # Centralizar o gráfico com largura controlada
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.plotly_chart(fig_contas, use_container_width=False)
+
+            st.plotly_chart(fig_contas, use_container_width=True)
             
             # Informação adicional
             st.info("💡 **Nota:** Estes são os saldos reais das contas bancárias, diferentes da análise por GRUPO (que classifica despesas por projeto).")
@@ -640,19 +638,15 @@ def main():
             st.warning("⚠️ Não foi possível calcular saldos por conta bancária.")
     
     with tab2:
-        # Evolução Temporal: sempre filtrada por NORTHSIDE / RITHMO
+        # Evolução Temporal: filtrada por RITHMO
         df_evolucao_rithmo = df_operacional_filtrado[
             df_operacional_filtrado['Grupo'] == 'RITHMO'
         ].copy()
-        st.info("🎯 **Visão Operacional** — NORTHSIDE / RITHMO | Análise sem transferências internas")
+        st.info("🎯 **Visão Operacional** — RITHMO | Análise sem transferências internas")
         st.subheader("Evolução Temporal do Fluxo de Caixa")
         df_temporal = processor.agregacao_temporal(df_evolucao_rithmo, freq='ME')
         fig_temporal = Visualizations.criar_grafico_evolucao_temporal(df_temporal)
         st.plotly_chart(fig_temporal, use_container_width=True)
-        
-        st.subheader("Comparativo Mensal")
-        fig_comparativo = Visualizations.criar_grafico_comparativo_mensal(df_evolucao_rithmo)
-        st.plotly_chart(fig_comparativo, use_container_width=True)
     
     with tab3:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
@@ -736,26 +730,6 @@ def main():
                 df_det[['Natureza', 'Total', 'Custo/m²']],
                 hide_index=True,
                 use_container_width=True,
-            )
-
-        st.divider()
-
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            df_grupo = processor.agregacao_por_grupo(df_operacional_filtrado)
-            fig_grupo = Visualizations.criar_grafico_por_grupo(df_grupo, top_n=10)
-            st.plotly_chart(fig_grupo, use_container_width=True)
-        
-        with col2:
-            st.markdown("### 📊 Resumo por Grupo")
-            df_grupo_display = df_grupo.head(10).copy()
-            df_grupo_display['Saídas'] = df_grupo_display['Saida'].apply(lambda x: formatar_moeda(abs(x)))
-            df_grupo_display['Entradas'] = df_grupo_display['Entrada'].apply(formatar_moeda)
-            st.dataframe(
-                df_grupo_display[['Grupo', 'Entradas', 'Saídas']],
-                hide_index=True,
-                use_container_width=True
             )
     
     with tab4:
@@ -901,64 +875,7 @@ def main():
             df_natureza_detalhado['Saida_Abs'] = df_natureza_detalhado['Saida'].abs()
             df_natureza_detalhado = df_natureza_detalhado.sort_values(['Grupo', 'Subgrupo', 'Saida_Abs'], ascending=[True, True, False])
             
-            # Resumo por Subgrupo
-            st.markdown("### 📊 Resumo por Subgrupo")
-            df_subgrupo_resumo = df_analise.groupby(['Grupo', 'Subgrupo']).agg({
-                'Entrada': 'sum',
-                'Saida': 'sum',
-                'Saldo': 'sum'
-            }).reset_index()
-            
-            df_subgrupo_resumo['Saida_Abs'] = df_subgrupo_resumo['Saida'].abs()
-            df_subgrupo_resumo = df_subgrupo_resumo.sort_values(['Grupo', 'Saida_Abs'], ascending=[True, False])
-            
-            # Gráfico de barras por subgrupo
-            fig_subgrupo = go.Figure()
-            
-            cores_grupo_subgrupo = {
-                'BARILOCHE': '#f97316',
-                'RITHMO':    '#3b82f6',
-                'NORTHSIDE': '#3b82f6',
-                'ÁGATA':     '#8b5cf6',
-            }
-            for grupo in df_subgrupo_resumo['Grupo'].unique():
-                df_grupo_temp = df_subgrupo_resumo[df_subgrupo_resumo['Grupo'] == grupo]
-                cor = cores_grupo_subgrupo.get(grupo, '#6b7280')
-                fig_subgrupo.add_trace(
-                    go.Bar(
-                        name=grupo,
-                        x=df_grupo_temp['Subgrupo'],
-                        y=df_grupo_temp['Saida_Abs'],
-                        text=df_grupo_temp['Saida_Abs'].apply(lambda x: f'R$ {x:,.0f}'),
-                        textposition='outside',
-                        marker=dict(color=cor, opacity=0.85, cornerradius=8),
-                        hovertemplate='<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>'
-                    )
-                )
-
-            fig_subgrupo.update_layout(
-                title='Comparativo de Saídas por Subgrupo e Grupo',
-                template='plotly_dark',
-                height=500,
-                xaxis_title='Subgrupo',
-                yaxis_title='Valor (R$)',
-                barmode='group',
-                showlegend=True,
-                bargap=0.15,
-                bargroupgap=0.1,
-                xaxis=dict(
-                    categoryorder='array',
-                    categoryarray=['CUSTO DO ATIVO', 'ADMINISTRAÇÃO', 'FINANCEIRO', 'RECEITA DO ATIVO']
-                )
-            )
-            
-            # Fixar largura das barras
-            fig_subgrupo.update_traces(width=0.3)
-            
-            st.plotly_chart(fig_subgrupo, use_container_width=True)
-            
-            # Tabela detalhada estilo Excel
-            st.markdown("---")
+            # 1) Primeiro: tabela detalhada
             st.markdown("### 📋 Detalhamento por Grupo, Subgrupo e Natureza")
             
             # Criar tabela formatada
@@ -1012,6 +929,61 @@ def main():
                         use_container_width=True,
                         height=min(600, len(tabela_display) * 35 + 50)
                     )
+            
+            # 2) Depois: comparativo de saídas por subgrupo/grupo (barras)
+            st.markdown("---")
+            st.markdown("### 📊 Resumo por Subgrupo")
+            df_subgrupo_resumo = df_analise.groupby(['Grupo', 'Subgrupo']).agg({
+                'Entrada': 'sum',
+                'Saida': 'sum',
+                'Saldo': 'sum'
+            }).reset_index()
+            
+            df_subgrupo_resumo['Saida_Abs'] = df_subgrupo_resumo['Saida'].abs()
+            df_subgrupo_resumo = df_subgrupo_resumo.sort_values(['Grupo', 'Saida_Abs'], ascending=[True, False])
+            
+            fig_subgrupo = go.Figure()
+            
+            cores_grupo_subgrupo = {
+                'BARILOCHE': '#f97316',
+                'RITHMO':    '#3b82f6',
+                'NORTHSIDE': '#3b82f6',
+                'ÁGATA':     '#8b5cf6',
+            }
+            for grupo in df_subgrupo_resumo['Grupo'].unique():
+                df_grupo_temp = df_subgrupo_resumo[df_subgrupo_resumo['Grupo'] == grupo]
+                cor = cores_grupo_subgrupo.get(grupo, '#6b7280')
+                fig_subgrupo.add_trace(
+                    go.Bar(
+                        name=grupo,
+                        x=df_grupo_temp['Subgrupo'],
+                        y=df_grupo_temp['Saida_Abs'],
+                        text=df_grupo_temp['Saida_Abs'].apply(lambda x: f'R$ {x:,.0f}'),
+                        textposition='outside',
+                        marker=dict(color=cor, opacity=0.85, cornerradius=8),
+                        hovertemplate='<b>%{x}</b><br>Valor: R$ %{y:,.2f}<extra></extra>'
+                    )
+                )
+
+            fig_subgrupo.update_layout(
+                title='Comparativo de Saídas por Subgrupo e Grupo',
+                template='plotly_dark',
+                height=500,
+                xaxis_title='Subgrupo',
+                yaxis_title='Valor (R$)',
+                barmode='group',
+                showlegend=True,
+                bargap=0.15,
+                bargroupgap=0.1,
+                xaxis=dict(
+                    categoryorder='array',
+                    categoryarray=['CUSTO DO ATIVO', 'ADMINISTRAÇÃO', 'FINANCEIRO', 'RECEITA DO ATIVO']
+                )
+            )
+            
+            fig_subgrupo.update_traces(width=0.3)
+            
+            st.plotly_chart(fig_subgrupo, use_container_width=True)
             
             # Opção de download
             st.markdown("---")
