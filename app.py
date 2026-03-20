@@ -677,8 +677,19 @@ def main():
         total_custo_m2 = abs(df_custo_m2['Saida'].sum())
         custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
 
+        # Marketing vs VGV (referência fixa de VGV para o indicador)
+        VGV_REFERENCIA_MARKETING = 21_735_911.00
+        df_marketing_rithmo = df_operacional_filtrado[
+            (df_operacional_filtrado['Grupo'] == 'RITHMO') &
+            (df_operacional_filtrado['Natureza'] == 'MARKETING')
+        ].copy()
+        total_marketing = abs(df_marketing_rithmo['Saida'].sum())
+        marketing_vs_vgv = (
+            total_marketing / VGV_REFERENCIA_MARKETING if VGV_REFERENCIA_MARKETING else 0.0
+        )
+
         st.markdown("#### 📐 Custo por m² — NORTHSIDE / Rithmo")
-        card1, card2, card3 = st.columns(3)
+        card1, card2, card3, card4 = st.columns(4)
         with card1:
             st.metric(
                 label="💰 Total Investido (seleção)",
@@ -703,6 +714,12 @@ def main():
                 unsafe_allow_html=True,
             )
         with card3:
+            st.metric(
+                label="📊 Marketing Vs VGV",
+                value=formatar_percentual(marketing_vs_vgv * 100, decimais=2),
+            )
+            st.caption(f"Custo marketing: {formatar_moeda(total_marketing)} ÷ VGV ref.")
+        with card4:
             st.metric(
                 label="📏 Área do Empreendimento",
                 value=f"{AREA_RITHMO_M2:_.2f} m²".replace('.', ',').replace('_', '.'),
