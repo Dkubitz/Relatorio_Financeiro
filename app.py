@@ -652,7 +652,7 @@ def main():
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
         st.subheader("Distribuição por Grupo/Projeto")
 
-        # --- Análise de Custo por m² — NORTHSIDE / Rithmo ---
+        # --- Análise de Custo por m² — Rithmo ---
         # Apenas Subgrupo "CUSTO DO ATIVO", excluindo as naturezas em verde
         AREA_RITHMO_M2 = 11_461.32
         NATUREZAS_CUSTO_M2_EXCLUIDAS = [
@@ -682,7 +682,7 @@ def main():
             total_marketing / VGV_REFERENCIA_MARKETING if VGV_REFERENCIA_MARKETING else 0.0
         )
 
-        st.markdown("#### 📐 Custo por m² — NORTHSIDE / Rithmo")
+        st.markdown("#### 📐 Custo por m² — Rithmo")
         card1, card2, card3, card4 = st.columns(4)
         with card1:
             st.metric(
