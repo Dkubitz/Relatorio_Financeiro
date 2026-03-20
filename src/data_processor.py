@@ -417,253 +417,170 @@ class DataProcessor:
         
         return df[mask].copy()
     
-    def calcular_aportes_corrigidos(self, taxa_juros_mensal: float = 0.9477, 
-                                    considerar_bariloche_como_pagamento: bool = False) -> Dict:
+    def calcular_aportes_corrigidos(self, taxa_juros_mensal: float = 0.9477,
+                                    excluir_bariloche_da_base: bool = True) -> Dict:
         """
-        Calcula total de aportes SCP corrigidos por juros compostos
-        
+        Calcula a base remunerada da SCP por juros compostos.
+
+        Regra de negócio:
+        - Todos os aportes entram inicialmente na ÁGATA.
+        - A parcela economicamente segregada para BARILOCHE não compõe a
+          base remunerada da ÁGATA/RITHMO.
+        - A segregação é aplicada desde a origem, alocando o montante de
+          BARILOCHE sobre os aportes mais antigos (FIFO).
+
         Args:
             taxa_juros_mensal: Taxa de juros mensal em % (padrão: 0.9477%)
-            considerar_bariloche_como_pagamento: Se True, gastos com BARILOCHE reduzem base de cálculo dos juros
-            
+            excluir_bariloche_da_base: Se True, remove BARILOCHE da base
+                remunerada desde a origem.
+
         Returns:
-            Dict com análise de aportes e memorial de cálculo detalhado
+            Dict com resumo, memorial e detalhamento por aporte
         """
-        # Filtrar aportes SCP
         df_aportes = self.df[
-            (self.df['Natureza'].str.contains('APORTE', case=False, na=False)) |
-            (self.df['Natureza'].str.contains('SCP', case=False, na=False))
+            (
+                self.df['Natureza'].str.contains('APORTE', case=False, na=False) |
+                self.df['Natureza'].str.contains('SCP', case=False, na=False)
+            ) &
+            (self.df['Entrada'] > 0)
         ].copy()
-        
+
         if len(df_aportes) == 0:
             return {
                 'total_aportes_original': 0.0,
+                'total_segregado_bariloche': 0.0,
+                'total_segregado_considerado': 0.0,
+                'segregacao_excedente_bariloche': 0.0,
+                'base_remunerada_original': 0.0,
+                'total_corrigido_base_remunerada': 0.0,
+                'total_juros_base_remunerada': 0.0,
                 'total_corrigido': 0.0,
                 'total_juros': 0.0,
                 'aportes_detalhados': pd.DataFrame(),
                 'data_base_calculo': datetime.now(),
-                'amortizacoes_bariloche': [],
-                'memorial_calculo': []
+                'segregacoes_bariloche': [],
+                'memorial_calculo': [],
+                'criterio_base': 'base_remunerada_liquida',
+                'metodo_segregacao': 'fifo_desde_origem',
             }
-        
-        # Data base para cálculo (hoje)
+
         data_base = datetime.now()
-        
-        # Calcular juros compostos para cada aporte
         taxa_decimal = taxa_juros_mensal / 100
-        
-        # Se considerar BARILOCHE como pagamento, obter todas as saídas BARILOCHE
-        amortizacoes = []
-        if considerar_bariloche_como_pagamento:
+        df_aportes = df_aportes.sort_values('Data').reset_index(drop=True)
+
+        def calcular_meses(data_inicial: datetime, data_final: datetime) -> float:
+            meses = (data_final.year - data_inicial.year) * 12
+            meses += (data_final.month - data_inicial.month)
+            meses += (data_final.day - data_inicial.day) / 30
+            return max(meses, 0)
+
+        segregacoes_bariloche = []
+        total_segregado_bariloche = 0.0
+
+        if excluir_bariloche_da_base:
             df_bariloche = self.df[
-                (self.df['Grupo'] == 'BARILOCHE') & 
+                (self.df['Grupo'] == 'BARILOCHE') &
                 (self.df['Saida'] < 0)
-            ].copy()
-            
+            ].copy().sort_values('Data')
+
             if len(df_bariloche) > 0:
-                # Ordenar por data
-                df_bariloche = df_bariloche.sort_values('Data')
-                amortizacoes = [
+                total_segregado_bariloche = abs(df_bariloche['Saida'].sum())
+                segregacoes_bariloche = [
                     {
                         'data': row['Data'],
                         'valor': abs(row['Saida']),
                         'natureza': row['Natureza'],
+                        'subgrupo': row['Subgrupo'],
                         'fornecedor': row['FORNECEDOR']
                     }
                     for _, row in df_bariloche.iterrows()
                 ]
-        
-        if not considerar_bariloche_como_pagamento or len(amortizacoes) == 0:
-            # CÁLCULO TRADICIONAL (sem considerar BARILOCHE) - por aporte individual
-            memorial_calculo = []
-            
-            def calcular_valor_corrigido_simples(row):
-                data_aporte = row['Data']
-                valor_original = row['Entrada']
-                
-                meses = (data_base.year - data_aporte.year) * 12 + (data_base.month - data_aporte.month)
-                meses += (data_base.day - data_aporte.day) / 30
-                valor_corrigido = valor_original * ((1 + taxa_decimal) ** meses)
-                
-                # Adicionar ao memorial de cálculo
-                memorial_calculo.append({
-                    'data_aporte': data_aporte.strftime('%d/%m/%Y'),
-                    'valor_original': valor_original,
-                    'meses_decorridos': round(meses, 4),
-                    'taxa_mensal': taxa_juros_mensal,
-                    'fator_juros': round((1 + taxa_decimal) ** meses, 8),
-                    'valor_corrigido': round(valor_corrigido, 2),
-                    'juros_acumulados': round(valor_corrigido - valor_original, 2),
-                    'formula': f"R$ {valor_original:,.2f} × (1 + {taxa_decimal:.6f})^{meses:.4f} = R$ {valor_corrigido:,.2f}"
-                })
-                
-                return {
-                    'valor_corrigido': valor_corrigido,
-                    'meses_decorridos': meses,
-                    'juros_acumulados': valor_corrigido - valor_original
-                }
-            
-            df_aportes['Calculos'] = df_aportes.apply(calcular_valor_corrigido_simples, axis=1)
-            df_aportes['Valor_Corrigido'] = df_aportes['Calculos'].apply(lambda x: x['valor_corrigido'])
-            df_aportes['Meses_Decorridos'] = df_aportes['Calculos'].apply(lambda x: x['meses_decorridos'])
-            df_aportes['Juros_Acumulados'] = df_aportes['Calculos'].apply(lambda x: x['juros_acumulados'])
-            
-            total_original = df_aportes['Entrada'].sum()
-            total_corrigido = df_aportes['Valor_Corrigido'].sum()
-            total_juros = df_aportes['Juros_Acumulados'].sum()
-        
-        else:
-            # CÁLCULO COM AMORTIZAÇÕES BARILOCHE - consolidado (não por aporte individual)
-            memorial_calculo = []
-            
-            # Construir linha do tempo GLOBAL com todos aportes e amortizações
-            eventos = []
-            
-            # Adicionar todos os aportes
-            for _, row in df_aportes.iterrows():
-                eventos.append({
-                    'data': row['Data'],
-                    'tipo': 'aporte',
-                    'valor': row['Entrada'],
-                    'referencia': row
-                })
-            
-            # Adicionar todas as amortizações BARILOCHE
-            for amort in amortizacoes:
-                eventos.append({
-                    'data': amort['data'],
-                    'tipo': 'amortizacao',
-                    'valor': amort['valor'],
-                    'referencia': amort
-                })
-            
-            # Ordenar eventos cronologicamente
-            eventos = sorted(eventos, key=lambda x: x['data'])
-            
-            # Simular evolução do capital mês a mês
-            capital_acumulado = 0
-            ultima_data = eventos[0]['data']
-            
-            # Adicionar cabeçalho do memorial
-            memorial_calculo.append({
-                'data_aporte': 'INÍCIO',
-                'valor_original': 0,
-                'meses_decorridos': 0,
-                'taxa_mensal': taxa_juros_mensal,
-                'fator_juros': 1.0,
-                'valor_corrigido': 0,
-                'juros_acumulados': 0,
-                'formula': 'INÍCIO DO CÁLCULO - MODO BARILOCHE',
-                'evento': 'Início',
-                'capital_antes': 0,
-                'capital_depois': 0
+
+        total_aportes_original = float(df_aportes['Entrada'].sum())
+        total_segregado_considerado = min(total_segregado_bariloche, total_aportes_original)
+        segregacao_excedente_bariloche = max(
+            total_segregado_bariloche - total_segregado_considerado,
+            0.0
+        )
+
+        segregado_remanescente = total_segregado_considerado
+        memorial_calculo = []
+        aportes_detalhados = []
+
+        for _, row in df_aportes.iterrows():
+            valor_original = float(row['Entrada'])
+            valor_segregado = min(valor_original, segregado_remanescente)
+            base_remunerada = max(valor_original - valor_segregado, 0.0)
+            segregado_remanescente -= valor_segregado
+
+            meses = calcular_meses(row['Data'], data_base)
+            fator_juros = (1 + taxa_decimal) ** meses
+            valor_corrigido = base_remunerada * fator_juros
+            juros_acumulados = valor_corrigido - base_remunerada
+
+            aporte_dict = row.to_dict()
+            aporte_dict.update({
+                'Valor_Segregado_Bariloche': valor_segregado,
+                'Base_Remunerada': base_remunerada,
+                'Valor_Corrigido': valor_corrigido,
+                'Meses_Decorridos': meses,
+                'Juros_Acumulados': juros_acumulados,
             })
-            
-            # Processar cada evento
-            for i, evento in enumerate(eventos):
-                # Calcular juros desde última data até este evento
-                meses = (evento['data'].year - ultima_data.year) * 12
-                meses += (evento['data'].month - ultima_data.month)
-                meses += (evento['data'].day - ultima_data.day) / 30
-                
-                capital_antes_juros = capital_acumulado
-                
-                if meses > 0 and capital_acumulado > 0:
-                    # Aplicar juros compostos sobre capital acumulado
-                    capital_acumulado = capital_acumulado * ((1 + taxa_decimal) ** meses)
-                
-                capital_antes_evento = capital_acumulado
-                
-                # Aplicar o evento
-                if evento['tipo'] == 'aporte':
-                    capital_acumulado += evento['valor']
-                    evento_desc = f"APORTE: R$ {evento['valor']:,.2f}"
-                elif evento['tipo'] == 'amortizacao':
-                    capital_acumulado -= evento['valor']
-                    if capital_acumulado < 0:
-                        capital_acumulado = 0
-                    evento_desc = f"AMORTIZAÇÃO BARILOCHE: -R$ {evento['valor']:,.2f}"
-                
-                # Adicionar ao memorial
-                memorial_calculo.append({
-                    'data_aporte': evento['data'].strftime('%d/%m/%Y'),
-                    'valor_original': evento['valor'],
-                    'meses_decorridos': round(meses, 4),
-                    'taxa_mensal': taxa_juros_mensal,
-                    'fator_juros': round((1 + taxa_decimal) ** meses, 8) if meses > 0 else 1.0,
-                    'valor_corrigido': round(capital_acumulado, 2),
-                    'juros_acumulados': round(capital_acumulado - capital_antes_juros, 2),
-                    'formula': f"Capital: R$ {capital_antes_juros:,.2f} × (1 + {taxa_decimal:.6f})^{meses:.4f} + {evento_desc} = R$ {capital_acumulado:,.2f}",
-                    'evento': evento_desc,
-                    'capital_antes': round(capital_antes_juros, 2),
-                    'capital_depois': round(capital_acumulado, 2)
-                })
-                
-                ultima_data = evento['data']
-            
-            # Calcular juros desde último evento até data_base
-            meses_final = (data_base.year - ultima_data.year) * 12
-            meses_final += (data_base.month - ultima_data.month)
-            meses_final += (data_base.day - ultima_data.day) / 30
-            
-            capital_antes_final = capital_acumulado
-            
-            if meses_final > 0 and capital_acumulado > 0:
-                capital_acumulado = capital_acumulado * ((1 + taxa_decimal) ** meses_final)
-            
-            # Adicionar cálculo final ao memorial
+            aportes_detalhados.append(aporte_dict)
+
+            if base_remunerada <= 0:
+                formula = (
+                    f"Aporte de R$ {valor_original:,.2f} segregado integralmente para "
+                    "BARILOCHE; sem incidência de juros na base da ÁGATA."
+                )
+            elif valor_segregado > 0:
+                formula = (
+                    f"(R$ {valor_original:,.2f} - R$ {valor_segregado:,.2f}) × "
+                    f"(1 + {taxa_decimal:.6f})^{meses:.4f} = R$ {valor_corrigido:,.2f}"
+                )
+            else:
+                formula = (
+                    f"R$ {base_remunerada:,.2f} × (1 + {taxa_decimal:.6f})^{meses:.4f} "
+                    f"= R$ {valor_corrigido:,.2f}"
+                )
+
             memorial_calculo.append({
-                'data_aporte': data_base.strftime('%d/%m/%Y'),
-                'valor_original': 0,
-                'meses_decorridos': round(meses_final, 4),
+                'data_aporte': row['Data'].strftime('%d/%m/%Y'),
+                'grupo': row['Grupo'],
+                'natureza': row['Natureza'],
+                'valor_original': round(valor_original, 2),
+                'valor_segregado_bariloche': round(valor_segregado, 2),
+                'base_remunerada_original': round(base_remunerada, 2),
+                'meses_decorridos': round(meses, 4),
                 'taxa_mensal': taxa_juros_mensal,
-                'fator_juros': round((1 + taxa_decimal) ** meses_final, 8) if meses_final > 0 else 1.0,
-                'valor_corrigido': round(capital_acumulado, 2),
-                'juros_acumulados': round(capital_acumulado - capital_antes_final, 2),
-                'formula': f"FINAL: R$ {capital_antes_final:,.2f} × (1 + {taxa_decimal:.6f})^{meses_final:.4f} = R$ {capital_acumulado:,.2f}",
-                'evento': 'CÁLCULO FINAL',
-                'capital_antes': round(capital_antes_final, 2),
-                'capital_depois': round(capital_acumulado, 2)
+                'fator_juros': round(fator_juros, 8),
+                'valor_corrigido': round(valor_corrigido, 2),
+                'juros_acumulados': round(juros_acumulados, 2),
+                'formula': formula
             })
-            
-            # Valores consolidados
-            total_original = df_aportes['Entrada'].sum()
-            total_corrigido = capital_acumulado
-            total_juros = total_corrigido - total_original
-            
-            # Para cada aporte individual, calcular proporcionalmente (para tabela detalhada)
-            def calcular_proporcional(row):
-                valor_original = row['Entrada']
-                proporcao = valor_original / total_original if total_original > 0 else 0
-                
-                meses = (data_base.year - row['Data'].year) * 12
-                meses += (data_base.month - row['Data'].month)
-                meses += (data_base.day - row['Data'].day) / 30
-                
-                # Valor corrigido proporcional ao total
-                valor_corrigido_prop = total_corrigido * proporcao
-                juros_prop = valor_corrigido_prop - valor_original
-                
-                return {
-                    'valor_corrigido': valor_corrigido_prop,
-                    'meses_decorridos': meses,
-                    'juros_acumulados': juros_prop
-                }
-            
-            df_aportes['Calculos'] = df_aportes.apply(calcular_proporcional, axis=1)
-            df_aportes['Valor_Corrigido'] = df_aportes['Calculos'].apply(lambda x: x['valor_corrigido'])
-            df_aportes['Meses_Decorridos'] = df_aportes['Calculos'].apply(lambda x: x['meses_decorridos'])
-            df_aportes['Juros_Acumulados'] = df_aportes['Calculos'].apply(lambda x: x['juros_acumulados'])
-        
+
+        df_aportes_detalhados = pd.DataFrame(aportes_detalhados)
+        base_remunerada_original = float(df_aportes_detalhados['Base_Remunerada'].sum())
+        total_corrigido_base = float(df_aportes_detalhados['Valor_Corrigido'].sum())
+        total_juros_base = float(df_aportes_detalhados['Juros_Acumulados'].sum())
+
         return {
-            'total_aportes_original': total_original,
-            'total_corrigido': total_corrigido,
-            'total_juros': total_juros,
-            'aportes_detalhados': df_aportes,
+            'total_aportes_original': total_aportes_original,
+            'total_segregado_bariloche': total_segregado_bariloche,
+            'total_segregado_considerado': total_segregado_considerado,
+            'segregacao_excedente_bariloche': segregacao_excedente_bariloche,
+            'base_remunerada_original': base_remunerada_original,
+            'total_corrigido_base_remunerada': total_corrigido_base,
+            'total_juros_base_remunerada': total_juros_base,
+            'total_corrigido': total_corrigido_base,
+            'total_juros': total_juros_base,
+            'aportes_detalhados': df_aportes_detalhados,
             'data_base_calculo': data_base,
             'taxa_juros': taxa_juros_mensal,
-            'amortizacoes_bariloche': amortizacoes,
-            'memorial_calculo': memorial_calculo
+            'segregacoes_bariloche': segregacoes_bariloche,
+            'memorial_calculo': memorial_calculo,
+            'criterio_base': 'base_remunerada_liquida',
+            'metodo_segregacao': 'fifo_desde_origem',
         }
     
     def analise_subgrupo_financeiro(self) -> Dict:

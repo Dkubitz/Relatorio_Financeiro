@@ -1037,13 +1037,16 @@ def main():
     
     with tab7:
         st.success("🔍 **Visão Completa** - Inclui todas as movimentações financeiras para análise de aportes e auditoria")
-        st.subheader("💰 Análise Financeira - Aportes SCP")
+        st.subheader("💰 Análise Financeira - Base Remunerada SCP")
         
-        # Configuração da taxa de juros e opção BARILOCHE
         col_info1, col_config1, col_config2 = st.columns([2, 1, 1])
         
         with col_info1:
-            st.info("📊 Esta seção analisa os **Aportes de Capital SCP** e calcula o valor corrigido por juros compostos.")
+            st.info(
+                "Esta seção calcula os juros compostos apenas sobre a base remunerada da SCP. "
+                "Quando ativada, a segregação de BARILOCHE retira esses valores da base da ÁGATA "
+                "desde a origem, preservando a leitura econômica do passivo."
+            )
         
         with col_config1:
             taxa_juros = st.number_input(
@@ -1056,193 +1059,116 @@ def main():
             )
         
         with col_config2:
-            considerar_bariloche = st.checkbox(
-                "🏔️ BARILOCHE como pagamento",
+            excluir_bariloche_da_base = st.checkbox(
+                "Segregar BARILOCHE da base",
                 value=True,
-                help="Considera gastos com BARILOCHE como amortizações dos aportes, reduzindo a base de cálculo dos juros"
+                help=(
+                    "Remove BARILOCHE da base remunerada desde a origem, "
+                    "usando alocação FIFO dos aportes mais antigos."
+                )
             )
         
-        # Calcular aportes corrigidos
         analise_aportes = processor.calcular_aportes_corrigidos(
             taxa_juros_mensal=taxa_juros,
-            considerar_bariloche_como_pagamento=considerar_bariloche
+            excluir_bariloche_da_base=excluir_bariloche_da_base
         )
         
         if analise_aportes['total_aportes_original'] > 0:
-            # KPIs de Aportes
-            st.markdown("### 📊 Resumo de Aportes SCP")
-            col1, col2, col3, col4 = st.columns(4)
+            percentual_juros = 0.0
+            if analise_aportes['base_remunerada_original'] > 0:
+                percentual_juros = (
+                    analise_aportes['total_juros_base_remunerada'] /
+                    analise_aportes['base_remunerada_original']
+                ) * 100
+            
+            st.markdown("### 📊 Resumo Executivo")
+            col1, col2, col3, col4, col5, col6 = st.columns(6)
             
             with col1:
                 st.metric(
-                    "💵 Total Original",
+                    "💵 Aportes Totais",
                     formatar_moeda(analise_aportes['total_aportes_original'])
                 )
             
             with col2:
                 st.metric(
-                    "📈 Total Corrigido",
-                    formatar_moeda(analise_aportes['total_corrigido'])
+                    "🏔️ BARILOCHE Segregado",
+                    formatar_moeda(analise_aportes['total_segregado_considerado'])
                 )
             
             with col3:
-                percentual_juros = (analise_aportes['total_juros'] / analise_aportes['total_aportes_original']) * 100
                 st.metric(
-                    "💸 Juros Acumulados",
-                    formatar_moeda(analise_aportes['total_juros']),
-                    delta=f"+{percentual_juros:.1f}%"
+                    "🧮 Base Remunerada",
+                    formatar_moeda(analise_aportes['base_remunerada_original'])
                 )
             
             with col4:
+                st.metric(
+                    "💸 Juros da Base",
+                    formatar_moeda(analise_aportes['total_juros_base_remunerada']),
+                    delta=f"+{percentual_juros:.1f}%"
+                )
+            
+            with col5:
+                st.metric(
+                    "📈 Total Corrigido",
+                    formatar_moeda(analise_aportes['total_corrigido_base_remunerada'])
+                )
+            
+            with col6:
                 st.metric(
                     "📅 Data Base",
                     analise_aportes['data_base_calculo'].strftime('%d/%m/%Y')
                 )
             
-            st.markdown("---")
-            
-            # Mostrar amortizações BARILOCHE se opção ativada
-            if considerar_bariloche and len(analise_aportes.get('amortizacoes_bariloche', [])) > 0:
-                st.info(
-                    f"🏔️ **Modo BARILOCHE ativado:** {len(analise_aportes['amortizacoes_bariloche'])} "
-                    f"amortizações sendo consideradas como pagamentos dos aportes"
-                )
-                
-                with st.expander("📋 Ver detalhes das amortizações BARILOCHE"):
-                    total_amortizado = sum(a['valor'] for a in analise_aportes['amortizacoes_bariloche'])
-                    st.metric("💰 Total Amortizado (BARILOCHE)", formatar_moeda(total_amortizado))
-                    
-                    # Tabela de amortizações
-                    df_amort = pd.DataFrame(analise_aportes['amortizacoes_bariloche'])
-                    df_amort['Data_Display'] = pd.to_datetime(df_amort['data']).dt.strftime('%d/%m/%Y')
-                    df_amort['Valor_Display'] = df_amort['valor'].apply(formatar_moeda)
-                    
-                    st.dataframe(
-                        df_amort[['Data_Display', 'Valor_Display', 'natureza', 'fornecedor']].rename(columns={
-                            'Data_Display': 'Data',
-                            'Valor_Display': 'Valor',
-                            'natureza': 'Natureza',
-                            'fornecedor': 'Fornecedor'
-                        }),
-                        hide_index=True,
-                        use_container_width=True,
-                        height=min(300, len(df_amort) * 35 + 50)
-                    )
-                
-                st.markdown("---")
-            
-            # MEMORIAL DE CÁLCULO
-            st.markdown("### 📋 Memorial de Cálculo")
-            st.info("🔍 **Auditoria Completa:** Este memorial mostra exatamente como os juros foram calculados, similar a uma planilha Excel auditável.")
-            
-            with st.expander("📊 Ver Memorial de Cálculo Detalhado", expanded=False):
-                if len(analise_aportes.get('memorial_calculo', [])) > 0:
-                    # Converter memorial para DataFrame
-                    df_memorial = pd.DataFrame(analise_aportes['memorial_calculo'])
-                    
-                    # Formatação para exibição
-                    df_memorial['Valor_Original_Display'] = df_memorial['valor_original'].apply(formatar_moeda)
-                    df_memorial['Valor_Corrigido_Display'] = df_memorial['valor_corrigido'].apply(formatar_moeda)
-                    df_memorial['Juros_Display'] = df_memorial['juros_acumulados'].apply(formatar_moeda)
-                    df_memorial['Fator_Juros_Display'] = df_memorial['fator_juros'].apply(lambda x: f"{x:.8f}")
-                    
-                    # Colunas para exibição
-                    colunas_exibir = [
-                        'data_aporte', 'Valor_Original_Display', 'meses_decorridos', 
-                        'taxa_mensal', 'Fator_Juros_Display', 'Valor_Corrigido_Display', 
-                        'Juros_Display', 'formula'
-                    ]
-                    
-                    # Renomear colunas para exibição
-                    df_display = df_memorial[colunas_exibir].copy()
-                    df_display.columns = [
-                        'Data', 'Valor Original', 'Meses', 'Taxa (%)', 
-                        'Fator Juros', 'Valor Corrigido', 'Juros', 'Fórmula'
-                    ]
-                    
-                    st.dataframe(
-                        df_display,
-                        hide_index=True,
-                        use_container_width=True,
-                        height=min(400, len(df_memorial) * 35 + 50)
-                    )
-                    
-                    # Resumo do memorial
-                    st.markdown("#### 📈 Resumo do Memorial:")
-                    col_res1, col_res2, col_res3 = st.columns(3)
-                    
-                    with col_res1:
-                        st.metric(
-                            "📅 Total de Etapas",
-                            len(df_memorial)
-                        )
-                    
-                    with col_res2:
-                        st.metric(
-                            "💰 Valor Final",
-                            formatar_moeda(analise_aportes['total_corrigido'])
-                        )
-                    
-                    with col_res3:
-                        st.metric(
-                            "📊 Taxa Aplicada",
-                            f"{analise_aportes['taxa_juros']:.4f}% a.m."
-                        )
-                    
-                    # Opção para download do memorial
-                    st.markdown("#### 💾 Exportar Memorial:")
-                    if st.button("📥 Baixar Memorial de Cálculo (Excel)"):
-                        # Criar arquivo Excel com memorial
-                        output = io.BytesIO()
-                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                            # Memorial detalhado
-                            df_memorial.to_excel(writer, sheet_name='Memorial_Calculo', index=False)
-                            
-                            # Resumo
-                            resumo_data = {
-                                'Métrica': ['Total Aportes Original', 'Total Corrigido', 'Total Juros', 'Taxa Mensal (%)', 'Data Base'],
-                                'Valor': [
-                                    analise_aportes['total_aportes_original'],
-                                    analise_aportes['total_corrigido'],
-                                    analise_aportes['total_juros'],
-                                    analise_aportes['taxa_juros'],
-                                    analise_aportes['data_base_calculo'].strftime('%d/%m/%Y')
-                                ]
-                            }
-                            pd.DataFrame(resumo_data).to_excel(writer, sheet_name='Resumo', index=False)
-                        
-                        st.download_button(
-                            label="📥 Download Memorial de Cálculo.xlsx",
-                            data=output.getvalue(),
-                            file_name=f"Memorial_Calculo_Aportes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
-                else:
-                    st.warning("⚠️ Nenhum memorial de cálculo disponível.")
-            
-            # Alerta destacado
-            st.error(f"🚨 **DÍVIDA TOTAL CORRIGIDA:** {formatar_moeda(analise_aportes['total_corrigido'])} "
-                    f"(Taxa: {taxa_juros}% a.m.)")
-            
-            st.markdown("---")
-            
-            # Gráficos - Layout organizado e simétrico
-            st.markdown("### 📈 Visualizações Gráficas")
-            
-            # Linha 1: Evolução Acumulativa (destaque - largura total)
-            st.markdown("#### 📊 Evolução Acumulativa do Capital + Juros")
-            fig_acumulativo = Visualizations.criar_grafico_aportes_acumulativo(
-                analise_aportes['aportes_detalhados']
+            st.caption(
+                "Metodologia: juros compostos sobre a base remunerada líquida. "
+                "A segregação de BARILOCHE é aplicada desde a origem com critério FIFO."
             )
-            st.plotly_chart(fig_acumulativo, use_container_width=True)
+            
+            if excluir_bariloche_da_base and len(analise_aportes.get('segregacoes_bariloche', [])) > 0:
+                st.info(
+                    f"BARILOCHE foi retirado da base remunerada com {len(analise_aportes['segregacoes_bariloche'])} "
+                    "lançamentos de saída. O valor segregado reduz a base antes do cálculo dos juros."
+                )
+            
+            if analise_aportes.get('segregacao_excedente_bariloche', 0) > 0:
+                st.warning(
+                    "O total segregado de BARILOCHE excede o montante de aportes identificado. "
+                    "O excedente foi desconsiderado da base por limite de principal disponível."
+                )
+            
+            st.error(
+                f"VALOR CORRIGIDO DA BASE REMUNERADA: "
+                f"{formatar_moeda(analise_aportes['total_corrigido_base_remunerada'])} "
+                f"(Taxa: {taxa_juros:.4f}% a.m.)"
+            )
+            
+            st.markdown("---")
+            st.markdown("### 📈 Leitura Financeira")
+            col_graf1, col_graf2 = st.columns([1, 1])
+            
+            with col_graf1:
+                fig_ponte = Visualizations.criar_grafico_ponte_base_remunerada(
+                    analise_aportes['total_aportes_original'],
+                    analise_aportes['total_segregado_considerado'],
+                    analise_aportes['base_remunerada_original'],
+                    analise_aportes['total_juros_base_remunerada'],
+                    analise_aportes['total_corrigido_base_remunerada']
+                )
+                st.plotly_chart(fig_ponte, use_container_width=True)
+            
+            with col_graf2:
+                fig_acumulativo = Visualizations.criar_grafico_aportes_acumulativo(
+                    analise_aportes['aportes_detalhados']
+                )
+                st.plotly_chart(fig_acumulativo, use_container_width=True)
             
             st.markdown("---")
             
-            # Linha 2: Dois gráficos lado a lado (simétrico)
             col1, col2 = st.columns(2)
-            
             with col1:
-                st.markdown("#### 📊 Evolução Individual dos Aportes")
+                st.markdown("#### 📊 Evolução Individual da Base por Aporte")
                 fig_aportes = Visualizations.criar_grafico_aportes_corrigidos(
                     analise_aportes['aportes_detalhados']
                 )
@@ -1255,28 +1181,149 @@ def main():
                 )
                 st.plotly_chart(fig_juros, use_container_width=True)
             
-            # Tabela detalhada de aportes
+            st.markdown("---")
+            st.markdown("### 🏔️ Segregação de BARILOCHE")
+            if len(analise_aportes.get('segregacoes_bariloche', [])) > 0:
+                col_seg1, col_seg2, col_seg3 = st.columns(3)
+                with col_seg1:
+                    st.metric(
+                        "Saídas BARILOCHE",
+                        formatar_moeda(analise_aportes['total_segregado_bariloche'])
+                    )
+                with col_seg2:
+                    st.metric(
+                        "Segregado na Base",
+                        formatar_moeda(analise_aportes['total_segregado_considerado'])
+                    )
+                with col_seg3:
+                    st.metric(
+                        "Excedente não imputado",
+                        formatar_moeda(analise_aportes.get('segregacao_excedente_bariloche', 0.0))
+                    )
+                
+                with st.expander("Ver lançamentos segregados de BARILOCHE", expanded=False):
+                    df_seg = pd.DataFrame(analise_aportes['segregacoes_bariloche'])
+                    df_seg['Data'] = pd.to_datetime(df_seg['data']).dt.strftime('%d/%m/%Y')
+                    df_seg['Valor'] = df_seg['valor'].apply(formatar_moeda)
+                    st.dataframe(
+                        df_seg[['Data', 'Valor', 'subgrupo', 'natureza', 'fornecedor']].rename(columns={
+                            'subgrupo': 'Subgrupo',
+                            'natureza': 'Natureza',
+                            'fornecedor': 'Fornecedor'
+                        }),
+                        hide_index=True,
+                        use_container_width=True,
+                        height=min(360, len(df_seg) * 35 + 50)
+                    )
+            else:
+                st.caption("Nenhum lançamento BARILOCHE foi encontrado para segregação neste cenário.")
+            
+            st.markdown("---")
+            st.markdown("### 📋 Memorial da Base Remunerada")
+            st.info(
+                "O memorial mostra, para cada aporte, o valor original, a parcela segregada para "
+                "BARILOCHE, a base efetivamente remunerada e o valor corrigido por juros compostos."
+            )
+            
+            df_memorial = pd.DataFrame(analise_aportes.get('memorial_calculo', []))
+            if len(df_memorial) > 0:
+                df_memorial['Valor_Original_Display'] = df_memorial['valor_original'].apply(formatar_moeda)
+                df_memorial['Valor_Segregado_Display'] = df_memorial['valor_segregado_bariloche'].apply(formatar_moeda)
+                df_memorial['Base_Remunerada_Display'] = df_memorial['base_remunerada_original'].apply(formatar_moeda)
+                df_memorial['Valor_Corrigido_Display'] = df_memorial['valor_corrigido'].apply(formatar_moeda)
+                df_memorial['Juros_Display'] = df_memorial['juros_acumulados'].apply(formatar_moeda)
+                df_memorial['Fator_Juros_Display'] = df_memorial['fator_juros'].apply(lambda x: f"{x:.8f}")
+                
+                st.dataframe(
+                    df_memorial[
+                        [
+                            'data_aporte', 'grupo', 'natureza', 'Valor_Original_Display',
+                            'Valor_Segregado_Display', 'Base_Remunerada_Display',
+                            'meses_decorridos', 'taxa_mensal', 'Fator_Juros_Display',
+                            'Valor_Corrigido_Display', 'Juros_Display', 'formula'
+                        ]
+                    ].rename(columns={
+                        'data_aporte': 'Data',
+                        'grupo': 'Grupo',
+                        'natureza': 'Natureza',
+                        'Valor_Original_Display': 'Valor Original',
+                        'Valor_Segregado_Display': 'Segregado BARILOCHE',
+                        'Base_Remunerada_Display': 'Base Remunerada',
+                        'meses_decorridos': 'Meses',
+                        'taxa_mensal': 'Taxa (%)',
+                        'Fator_Juros_Display': 'Fator Juros',
+                        'Valor_Corrigido_Display': 'Valor Corrigido',
+                        'Juros_Display': 'Juros',
+                        'formula': 'Fórmula'
+                    }),
+                    hide_index=True,
+                    use_container_width=True,
+                    height=min(420, len(df_memorial) * 35 + 50)
+                )
+                
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_memorial.to_excel(writer, sheet_name='Memorial_Base', index=False)
+                    pd.DataFrame({
+                        'Métrica': [
+                            'Aportes Totais',
+                            'BARILOCHE Segregado',
+                            'Base Remunerada',
+                            'Juros da Base',
+                            'Total Corrigido',
+                            'Taxa Mensal (%)',
+                            'Data Base'
+                        ],
+                        'Valor': [
+                            analise_aportes['total_aportes_original'],
+                            analise_aportes['total_segregado_considerado'],
+                            analise_aportes['base_remunerada_original'],
+                            analise_aportes['total_juros_base_remunerada'],
+                            analise_aportes['total_corrigido_base_remunerada'],
+                            analise_aportes['taxa_juros'],
+                            analise_aportes['data_base_calculo'].strftime('%d/%m/%Y')
+                        ]
+                    }).to_excel(writer, sheet_name='Resumo', index=False)
+                
+                st.download_button(
+                    label="📥 Baixar Memorial da Base Remunerada (Excel)",
+                    data=output.getvalue(),
+                    file_name=f"Memorial_Base_Remunerada_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            else:
+                st.warning("Nenhum memorial de cálculo disponível.")
+            
             st.markdown("---")
             st.markdown("### 📋 Detalhamento dos Aportes")
             
             df_aportes_display = analise_aportes['aportes_detalhados'].copy()
             df_aportes_display['Data_Display'] = df_aportes_display['Data'].dt.strftime('%d/%m/%Y')
             df_aportes_display['Original'] = df_aportes_display['Entrada'].apply(formatar_moeda)
+            df_aportes_display['Segregado_BARILOCHE'] = df_aportes_display['Valor_Segregado_Bariloche'].apply(formatar_moeda)
+            df_aportes_display['Base_Remunerada_Display'] = df_aportes_display['Base_Remunerada'].apply(formatar_moeda)
             df_aportes_display['Corrigido'] = df_aportes_display['Valor_Corrigido'].apply(formatar_moeda)
             df_aportes_display['Juros'] = df_aportes_display['Juros_Acumulados'].apply(formatar_moeda)
             df_aportes_display['Meses'] = df_aportes_display['Meses_Decorridos'].apply(lambda x: f"{x:.1f}")
             
             st.dataframe(
-                df_aportes_display[['Data_Display', 'Grupo', 'Natureza', 'Original', 
-                                   'Meses', 'Juros', 'Corrigido']].rename(columns={
+                df_aportes_display[
+                    [
+                        'Data_Display', 'Grupo', 'Natureza', 'Original',
+                        'Segregado_BARILOCHE', 'Base_Remunerada_Display',
+                        'Meses', 'Juros', 'Corrigido'
+                    ]
+                ].rename(columns={
                     'Data_Display': 'Data',
                     'Original': 'Valor Original',
-                    'Corrigido': 'Valor Corrigido',
-                    'Meses': 'Meses Decorridos'
+                    'Segregado_BARILOCHE': 'Segregado BARILOCHE',
+                    'Base_Remunerada_Display': 'Base Remunerada',
+                    'Meses': 'Meses Decorridos',
+                    'Corrigido': 'Valor Corrigido'
                 }),
                 hide_index=True,
                 use_container_width=True,
-                height=400
+                height=420
             )
         else:
             st.warning("⚠️ Nenhum aporte SCP encontrado nos dados.")

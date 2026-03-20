@@ -411,21 +411,28 @@ class Visualizations:
             return go.Figure()
         
         df_plot = df_aportes.sort_values('Data').copy()
+        coluna_base = 'Base_Remunerada' if 'Base_Remunerada' in df_plot.columns else 'Entrada'
+        nome_base = 'Base Remunerada' if coluna_base == 'Base_Remunerada' else 'Valor Original'
+        titulo = (
+            'Evolução da Base Remunerada por Aporte'
+            if coluna_base == 'Base_Remunerada'
+            else 'Evolução dos Aportes SCP (Original vs Corrigido)'
+        )
         
         fig = go.Figure()
         
-        # Valor original
+        # Base original
         fig.add_trace(
             go.Scatter(
                 x=df_plot['Data'],
-                y=df_plot['Entrada'],
-                name='Valor Original',
+                y=df_plot[coluna_base],
+                name=nome_base,
                 mode='lines+markers',
                 line=dict(color='#3b82f6', width=3),
                 marker=dict(size=10),
                 fill='tozeroy',
                 fillcolor='rgba(59, 130, 246, 0.1)',
-                hovertemplate='<b>Original</b><br>Data: %{x|%d/%m/%Y}<br>Valor: R$ %{y:,.2f}<extra></extra>'
+                hovertemplate=f'<b>{nome_base}</b><br>Data: %{{x|%d/%m/%Y}}<br>Valor: R$ %{{y:,.2f}}<extra></extra>'
             )
         )
         
@@ -443,11 +450,11 @@ class Visualizations:
         )
         
         fig.update_layout(
-            title='Evolução dos Aportes SCP (Original vs Corrigido)',
+            title=titulo,
             template=Visualizations.TEMPLATE,
             height=500,
             xaxis_title='Data do Aporte',
-            yaxis_title='Valor Acumulado (R$)',
+            yaxis_title='Valor (R$)',
             hovermode='x unified',
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
@@ -532,25 +539,32 @@ class Visualizations:
         
         # Ordenar por data
         df_plot = df_aportes.sort_values('Data').copy()
+        coluna_base = 'Base_Remunerada' if 'Base_Remunerada' in df_plot.columns else 'Entrada'
+        nome_base = 'Base Remunerada' if coluna_base == 'Base_Remunerada' else 'Capital Aportado'
+        titulo = (
+            'Evolução Acumulativa: Base Remunerada + Juros'
+            if coluna_base == 'Base_Remunerada'
+            else 'Evolução Acumulativa: Capital + Juros'
+        )
         
         # Calcular valores acumulados
-        df_plot['Entrada_Acumulada'] = df_plot['Entrada'].cumsum()
+        df_plot['Entrada_Acumulada'] = df_plot[coluna_base].cumsum()
         df_plot['Corrigido_Acumulado'] = df_plot['Valor_Corrigido'].cumsum()
         df_plot['Juros_Acumulados_Total'] = df_plot['Corrigido_Acumulado'] - df_plot['Entrada_Acumulada']
         
         fig = go.Figure()
         
-        # Área de valor original acumulado
+        # Área de base original acumulada
         fig.add_trace(
             go.Scatter(
                 x=df_plot['Data'],
                 y=df_plot['Entrada_Acumulada'],
-                name='Capital Aportado',
+                name=nome_base,
                 mode='lines',
                 line=dict(color='#3b82f6', width=0),
                 fill='tozeroy',
                 fillcolor='rgba(59, 130, 246, 0.3)',
-                hovertemplate='<b>Capital Aportado</b><br>Data: %{x|%d/%m/%Y}<br>Valor: R$ %{y:,.2f}<extra></extra>'
+                hovertemplate=f'<b>{nome_base}</b><br>Data: %{{x|%d/%m/%Y}}<br>Valor: R$ %{{y:,.2f}}<extra></extra>'
             )
         )
         
@@ -581,21 +595,21 @@ class Visualizations:
             )
         )
         
-        # Linha do capital original
+        # Linha da base original
         fig.add_trace(
             go.Scatter(
                 x=df_plot['Data'],
                 y=df_plot['Entrada_Acumulada'],
-                name='Capital Original',
+                name=nome_base,
                 mode='lines+markers',
                 line=dict(color='#2563eb', width=3),
                 marker=dict(size=8),
-                hovertemplate='<b>Capital Original</b><br>Data: %{x|%d/%m/%Y}<br>Valor: R$ %{y:,.2f}<extra></extra>'
+                hovertemplate=f'<b>{nome_base}</b><br>Data: %{{x|%d/%m/%Y}}<br>Valor: R$ %{{y:,.2f}}<extra></extra>'
             )
         )
         
         fig.update_layout(
-            title='Evolução Acumulativa: Capital + Juros',
+            title=titulo,
             template=Visualizations.TEMPLATE,
             height=500,
             xaxis_title='Data',
@@ -610,6 +624,62 @@ class Visualizations:
             )
         )
         
+        return Visualizations._aplicar_animacoes(fig)
+
+    @staticmethod
+    def criar_grafico_ponte_base_remunerada(
+        total_aportes: float,
+        total_segregado: float,
+        base_remunerada: float,
+        total_juros: float,
+        total_corrigido: float
+    ) -> go.Figure:
+        """
+        Cria gráfico waterfall para explicar a formação da base remunerada.
+        """
+        fig = go.Figure(
+            go.Waterfall(
+                x=[
+                    'Aportes Totais',
+                    'BARILOCHE Segregado',
+                    'Base Remunerada',
+                    'Juros',
+                    'Total Corrigido'
+                ],
+                measure=['absolute', 'relative', 'total', 'relative', 'total'],
+                y=[
+                    total_aportes,
+                    -total_segregado,
+                    base_remunerada,
+                    total_juros,
+                    total_corrigido
+                ],
+                connector={"line": {"color": "rgba(255,255,255,0.25)"}},
+                increasing={"marker": {"color": Visualizations.COLOR_ENTRADA}},
+                decreasing={"marker": {"color": Visualizations.COLOR_SAIDA}},
+                totals={"marker": {"color": Visualizations.COLOR_SALDO}},
+                text=[
+                    formatar_moeda(total_aportes),
+                    formatar_moeda(-total_segregado),
+                    formatar_moeda(base_remunerada),
+                    formatar_moeda(total_juros),
+                    formatar_moeda(total_corrigido),
+                ],
+                textposition='outside',
+                hovertemplate='%{x}<br>%{text}<extra></extra>'
+            )
+        )
+
+        fig.update_layout(
+            title='Formação da Base Remunerada',
+            template=Visualizations.TEMPLATE,
+            height=420,
+            yaxis_title='Valor (R$)',
+            xaxis_title='Etapas',
+            showlegend=False,
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+
         return Visualizations._aplicar_animacoes(fig)
     
     @staticmethod
