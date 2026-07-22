@@ -653,7 +653,8 @@ def main():
         st.subheader("Distribuição por Grupo/Projeto")
 
         # --- Análise de Custo por m² — Rithmo ---
-        # Apenas Subgrupo "CUSTO DO ATIVO", excluindo as naturezas em verde
+        # Apenas Subgrupo "CUSTO DO ATIVO"; as naturezas abaixo começam
+        # desmarcadas, mas o usuário escolhe no detalhamento o que entra na conta
         AREA_RITHMO_M2 = 11_461.32
         NATUREZAS_CUSTO_M2_EXCLUIDAS = [
             'CUSTO DA ÁREA (ROÇADA, CERCAMENTO E OUTROS)',
@@ -667,9 +668,6 @@ def main():
             (df_operacional_filtrado['Grupo'] == 'RITHMO') &
             (df_operacional_filtrado['Subgrupo'] == 'CUSTO DO ATIVO')
         ].copy()
-        df_custo_m2 = df_northside_op[~df_northside_op['Natureza'].isin(NATUREZAS_CUSTO_M2_EXCLUIDAS)]
-        total_custo_m2 = abs(df_custo_m2['Saida'].sum())
-        custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
 
         # Marketing vs VGV (referência fixa de VGV para o indicador)
         VGV_REFERENCIA_MARKETING = 21_735_911.00
@@ -683,54 +681,83 @@ def main():
         )
 
         st.markdown("#### 📐 Custo por m² — Rithmo")
-        card1, card2, card3, card4 = st.columns(4)
-        with card1:
-            st.metric(
-                label="💰 Total Investido (seleção)",
-                value=formatar_moeda(total_custo_m2),
-            )
-        with card2:
-            ORCADO_M2 = 392.62
-            delta_m2 = custo_por_m2 - ORCADO_M2
-            cor = "#00c853" if delta_m2 < 0 else "#ff5252"
-            seta = "↓" if delta_m2 < 0 else "↑"
-            st.metric(
-                label="📐 Custo por m²",
-                value=formatar_moeda(custo_por_m2),
-            )
-            st.markdown(
-                f"""<div style="color:{cor}; font-size:20px; font-weight:700; margin-top:-12px;">
-                    {seta} {formatar_moeda(abs(delta_m2))}
-                    <span style="color:#aaaaaa; font-size:16px; font-weight:400;">
-                        &nbsp;vs orçado ({formatar_moeda(ORCADO_M2)}/m²)
-                    </span>
-                </div>""",
-                unsafe_allow_html=True,
-            )
-        with card3:
-            st.metric(
-                label="📊 Marketing Vs VGV",
-                value=formatar_percentual(marketing_vs_vgv * 100, decimais=2),
-            )
-            st.caption(f"Custo marketing: {formatar_moeda(total_marketing)} ÷ VGV ref.")
-        with card4:
-            st.metric(
-                label="📏 Área do Empreendimento",
-                value=f"{AREA_RITHMO_M2:_.2f} m²".replace('.', ',').replace('_', '.'),
-            )
+        cards_custo_m2 = st.container()
 
         with st.expander("🔍 Ver detalhamento por natureza"):
-            df_det = df_custo_m2.groupby('Natureza')['Saida'].sum().reset_index()
+            st.caption("Marque/desmarque as naturezas que entram no cálculo do custo por m².")
+            df_det = df_northside_op.groupby('Natureza')['Saida'].sum().reset_index()
+            df_det = df_det.sort_values('Saida').reset_index(drop=True)
+
+            desmarcadas = st.session_state.setdefault(
+                'naturezas_custo_m2_desmarcadas', set(NATUREZAS_CUSTO_M2_EXCLUIDAS)
+            )
+            df_det['Incluir'] = ~df_det['Natureza'].isin(desmarcadas)
             df_det['Total'] = df_det['Saida'].apply(lambda x: formatar_moeda(abs(x)))
             df_det['Custo/m²'] = df_det['Saida'].apply(
                 lambda x: formatar_moeda(abs(x) / AREA_RITHMO_M2)
             )
-            df_det = df_det.sort_values('Saida').reset_index(drop=True)
-            st.dataframe(
-                df_det[['Natureza', 'Total', 'Custo/m²']],
+
+            df_det_editado = st.data_editor(
+                df_det[['Incluir', 'Natureza', 'Total', 'Custo/m²']],
                 hide_index=True,
                 use_container_width=True,
+                disabled=['Natureza', 'Total', 'Custo/m²'],
+                column_config={
+                    'Incluir': st.column_config.CheckboxColumn(
+                        'Incluir',
+                        help='Entra no cálculo do custo por m²',
+                    ),
+                },
+                key=f"editor_custo_m2_{hash(tuple(df_det['Natureza']))}",
             )
+            naturezas_incluidas = set(
+                df_det_editado.loc[df_det_editado['Incluir'], 'Natureza']
+            )
+            # preserva escolhas de naturezas fora da seleção de filtros atual
+            st.session_state['naturezas_custo_m2_desmarcadas'] = (
+                desmarcadas - set(df_det['Natureza'])
+            ) | set(df_det_editado.loc[~df_det_editado['Incluir'], 'Natureza'])
+
+        df_custo_m2 = df_northside_op[df_northside_op['Natureza'].isin(naturezas_incluidas)]
+        total_custo_m2 = abs(df_custo_m2['Saida'].sum())
+        custo_por_m2 = total_custo_m2 / AREA_RITHMO_M2
+
+        with cards_custo_m2:
+            card1, card2, card3, card4 = st.columns(4)
+            with card1:
+                st.metric(
+                    label="💰 Total Investido (seleção)",
+                    value=formatar_moeda(total_custo_m2),
+                )
+            with card2:
+                ORCADO_M2 = 392.62
+                delta_m2 = custo_por_m2 - ORCADO_M2
+                cor = "#00c853" if delta_m2 < 0 else "#ff5252"
+                seta = "↓" if delta_m2 < 0 else "↑"
+                st.metric(
+                    label="📐 Custo por m²",
+                    value=formatar_moeda(custo_por_m2),
+                )
+                st.markdown(
+                    f"""<div style="color:{cor}; font-size:20px; font-weight:700; margin-top:-12px;">
+                        {seta} {formatar_moeda(abs(delta_m2))}
+                        <span style="color:#aaaaaa; font-size:16px; font-weight:400;">
+                            &nbsp;vs orçado ({formatar_moeda(ORCADO_M2)}/m²)
+                        </span>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+            with card3:
+                st.metric(
+                    label="📊 Marketing Vs VGV",
+                    value=formatar_percentual(marketing_vs_vgv * 100, decimais=2),
+                )
+                st.caption(f"Custo marketing: {formatar_moeda(total_marketing)} ÷ VGV ref.")
+            with card4:
+                st.metric(
+                    label="📏 Área do Empreendimento",
+                    value=f"{AREA_RITHMO_M2:_.2f} m²".replace('.', ',').replace('_', '.'),
+                )
     
     with tab4:
         st.info("🎯 **Visão Operacional** - Análise sem transferências internas")
